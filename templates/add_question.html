@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Добавить вопрос к тесту: {{ test.title }}</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            {{ question_form.text.label_tag }}:
+            {{ question_form.text|as_crispy_field }}
+        </div>
+        <div class="form-group">
+            {{ question_form.question_type.label_tag }}:
+            {{ question_form.question_type|as_crispy_field }}
+        </div>
+
+        <h4>Варианты ответов</h4>
+        {{ formset.management_form }}
+        <div id="answer-forms">
+            {% for form in formset %}
+            <div class="form-row answer-row">
+                <div class="col">
+                    {{ form.text.label_tag }}:
+                    {{ form.text|as_crispy_field }}
+                </div>
+                <div class="col">
+                    {{ form.is_correct.label_tag }}:
+                    {{ form.is_correct|as_crispy_field }}
+                </div>
+            </div>
+            <hr>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Сохранить вопрос и ответы</button>
+    </form>
+</div>
+
+{% block extra_scripts %}
+<script>
+    // Получаем выпадающий список для типа вопроса
+    const questionTypeField = document.getElementById('id_question_type');
+    
+    // Функция для скрытия или отображения полей ответов в зависимости от типа вопроса
+    function toggleAnswerFields() {
+        const answerRows = document.querySelectorAll('.answer-row');
+        
+        // Если тип вопроса 'true_false', скрываем все ответы, кроме первых двух
+        if (questionTypeField.value === 'true_false') {
+            answerRows.forEach((row, index) => {
+                if (index > 1) {
+                    row.style.display = 'none';  // Скрываем все ответы после второго
+                } else {
+                    row.style.display = '';  // Показываем первые два ответа
+                }
+            });
+        } else {
+            // Для других типов показываем все поля
+            answerRows.forEach((row) => {
+                row.style.display = '';  // Показываем все
+            });
+        }
+    }
+
+    // Добавляем обработчик на изменение типа вопроса
+    questionTypeField.addEventListener('change', toggleAnswerFields);
+
+    // Первоначальный вызов функции при загрузке страницы
+    toggleAnswerFields();
+</script>
+{% endblock %}
+{% endblock %}

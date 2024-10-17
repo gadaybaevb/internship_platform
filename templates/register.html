@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2>Регистрация</h2>
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Поле для ФИО -->
+            {{ form.full_name|as_crispy_field }}
+
+            <!-- Поле для имени пользователя и других данных -->
+            {{ form.username|as_crispy_field }}
+            {{ form.email|as_crispy_field }}
+            {{ form.department|as_crispy_field }}
+            {{ form.role|as_crispy_field }}
+
+            <!-- Поля для пароля с кнопками генерации и показа -->
+            <div class="form-group">
+                <label for="id_password1">Пароль</label>
+                {{ form.password1|as_crispy_field }}
+                <button type="button" class="btn btn-secondary mt-2" onclick="generatePassword()">Сгенерировать пароль</button>
+                <button type="button" class="btn btn-secondary mt-2" onclick="togglePasswordVisibility()">Показать пароль</button>
+            </div>
+            <div class="form-group">
+                <label for="id_password2">Подтверждение пароля</label>
+                {{ form.password2|as_crispy_field }}
+            </div>
+
+            <!-- Кнопка отправки формы -->
+            <button type="submit" class="btn btn-primary mt-3">Зарегистрироваться</button>
+            <a href="{% url 'user_list' %}" class="btn btn-primary mt-3">Назад</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Генерация случайного пароля
+    function generatePassword() {
+        const passwordLength = 12;
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+        let password = "";
+        for (let i = 0, n = charset.length; i < passwordLength; ++i) {
+            password += charset.charAt(Math.floor(Math.random() * n));
+        }
+        document.getElementById('id_password1').value = password;
+        document.getElementById('id_password2').value = password;
+    }
+
+    // Показать/скрыть пароль
+    function togglePasswordVisibility() {
+        const passwordField = document.getElementById('id_password1');
+        const passwordField2 = document.getElementById('id_password2');
+        const type = passwordField.type === "password" ? "text" : "password";
+        passwordField.type = type;
+        passwordField2.type = type;
+    }
+</script>
+{% endblock %}

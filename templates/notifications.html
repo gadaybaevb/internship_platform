@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Уведомления</h2>
+
+    {% if notifications %}
+        <ul class="list-group">
+            {% for notification in notifications %}
+                <li class="list-group-item {% if not notification.is_read %}list-group-item-warning{% endif %}">
+                    {{ notification.message }} ({{ notification.created_at|date:"d.m.Y H:i" }})
+                    {% if not notification.is_read %}
+                        <a href="{% url 'mark_notification_read' notification.id %}" class="btn btn-sm btn-primary float-right">Отметить как прочитанное</a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>У вас нет новых уведомлений.</p>
+    {% endif %}
+</div>
+{% endblock %}

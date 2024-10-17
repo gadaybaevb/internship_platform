@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Назначить ментора для {{ internship.intern.username }}</h2>
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="mentor">Выберите ментора:</label>
+            <select id="mentor" name="mentor" class="form-control">
+                {% for mentor in mentors %}
+                <option value="{{ mentor.id }}">{{ mentor.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="position">Выберите позицию:</label>
+            <select id="position" name="position" class="form-control">
+                {% for position in positions %}
+                <option value="{{ position.id }}">{{ position.name }} (Этапов: {{ position.stages_count }}, Промежуточный тест: {{ position.intermediate_test_after_stage }}, Финальный тест через {{ position.final_test_after_days }} дней)</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-2">Назначить</button>
+    </form>
+</div>
+{% endblock %}

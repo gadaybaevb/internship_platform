@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Инструкция к тесту: {{ test.title }}</h2>
+    <p>Этап: {{ test.stage_number }}</p>
+    <p>Минимальный проходной балл: {{ test.passing_score }}%</p>
+    <p>Количество вопросов: {{ test.required_questions }}</p>
+    <p>Время на тест: {{ test.time_limit }} минут</p>
+    <a href="{% url 'take_test' test.id %}" class="btn btn-primary">Начать тест</a>
+</div>
+{% endblock %}

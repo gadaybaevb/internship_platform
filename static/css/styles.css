@@ -1,0 +1,146 @@
+/* Sticky Header */
+.sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background-color: #fff;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.burger-menu {
+    font-size: 30px;
+    cursor: pointer;
+    display: none; /* По умолчанию скрываем бургер-меню */
+}
+
+/* Side Menu */
+.side-menu {
+    height: 100%;
+    width: 0;
+    position: fixed;
+    top: 0;
+    right: 0;
+    background-color: #333;
+    z-index: 9999;
+    overflow-x: hidden;
+    transition: width 0.5s ease, opacity 0.5s ease;
+    padding-top: 60px;
+    opacity: 0;
+}
+
+.side-menu.open {
+    width: 50%;
+    opacity: 1;
+}
+
+.side-menu a, .side-menu button {
+    padding: 8px 8px 8px 32px;
+    text-decoration: none;
+    font-size: 25px;
+    color: #fff;
+    display: block;
+    transition: 0.3s;
+    position: relative; /* Для добавления анимации underline */
+}
+
+.side-menu a:hover, .side-menu button:hover {
+    color: red;
+}
+
+.side-menu a::after, .side-menu button::after {
+    content: '';
+    display: block;
+    width: 0;
+    height: 2px;
+    background-color: #f1f1f1;
+    transition: width 0.3s;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+}
+
+.side-menu a:hover::after, .side-menu button:hover::after {
+    width: 100%;
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 25px;
+    font-size: 36px;
+    cursor: pointer;
+}
+
+/* Стили для ссылок в sticky меню */
+.navbar ul.nav {
+    display: flex;
+    list-style: none;
+    padding-left: 0;
+}
+
+.navbar ul.nav li {
+    margin-left: 15px;
+}
+
+.navbar ul.nav li a {
+    text-decoration: none;
+    color: #000;
+    padding: 10px 15px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.navbar ul.nav li a:hover {
+    color: #ff6600;
+    text-decoration: none;
+}
+
+.navbar ul.nav li a::after {
+    content: '';
+    display: block;
+    width: 0;
+    height: 2px;
+    background-color: #ff6600;
+    transition: width 0.3s;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+}
+
+.navbar ul.nav li a:hover::after {
+    width: 100%;
+}
+
+/* Показываем бургер-меню только на малых экранах */
+@media (max-width: 1026px) {
+    .burger-menu {
+        display: block;
+    }
+
+    /* Скрываем обычное меню */
+    .navbar ul.nav {
+        display: none;
+    }
+}
+
+/* Для экранов более 1026px, скрываем бургер-меню */
+@media (min-width: 1026px) {
+    .burger-menu {
+        display: none;
+    }
+
+    .navbar ul.nav {
+        display: flex;
+    }
+
+    .side-menu {
+        display: none;
+    }
+}

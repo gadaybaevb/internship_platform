@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="container mt-4">
+    {% if position %}
+        <h2>Редактировать должность: {{ position.name }}</h2>
+    {% else %}
+        <h2>Добавить должность</h2>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <button type="submit" class="btn btn-primary">
+            {% if position %}Сохранить изменения{% else %}Добавить должность{% endif %}
+        </button>
+        <a href="{% url 'position_list' %}" class="btn btn-secondary">Отмена</a>
+    </form>
+</div>
+{% endblock %}

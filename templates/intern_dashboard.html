@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Ваш прогресс по стажировке</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Название материала</th>
+                <th>Этап</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in materials %}
+            <tr>
+                <td>{{ item.material.title }}</td>
+                <td>Этап {{ item.material.stage }}</td>
+                <td>
+                    {% if item.status == 'Завершён' %}
+                        <span class="text-success">Завершён</span>
+                    {% elif item.status == 'Ожидание' %}
+                        <span class="text-warning">Ожидание подтверждения ментора</span>
+                    {% else %}
+                        <span class="text-danger">Не завершён</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mt-4">
+        <h4>Итоги:</h4>
+        <p>Пройдено материалов: {{ progress_summary.completed }} из {{ progress_summary.total }}</p>
+        <p>Осталось материалов: {{ progress_summary.remaining }}</p>
+        <p>Время до завершения стажировки: {{ progress_summary.time_left }} дней</p>
+    </div>
+</div>
+{% endblock %}

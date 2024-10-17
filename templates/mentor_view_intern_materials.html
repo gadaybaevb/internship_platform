@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Материалы стажера: {{ intern.full_name }}</h2>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Название материала</th>
+                <th>Этап</th>
+                <th>Статус</th>
+                <th>Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in materials %}
+            <tr>
+                <td>{{ item.material.title }}</td>
+                <td>Этап {{ item.material.stage }}</td>
+                <td>
+                    {% if item.status == 'Завершён' %}
+                        <span class="text-success">Завершён</span>
+                    {% elif item.status == 'Ожидание' %}
+                        <span class="text-warning">Ожидание подтверждения</span>
+                    {% else %}
+                        <span class="text-danger">Не завершён</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.status == 'Ожидание' %}
+                        <form method="post" action="{% url 'confirm_material_completion' item.progress_id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success">Подтвердить</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

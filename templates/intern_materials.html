@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load stage_filters %}
+{% load custom_filters %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Ваш прогресс по стажировке</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Название материала</th>
+                <th>Этап</th>
+                <th>Статус</th>
+                <th>Пройдено</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in materials %}
+            <tr>
+                <td>{{ item.material.title }}</td>
+                <td>Этап {{ item.material.stage }}</td>
+                <td>
+                    {% if item.status == 'completed' %}
+                        <span class="text-success">Завершён</span>
+                    {% elif item.status == 'pending' %}
+                        <span class="text-warning">Ожидание подтверждения ментора</span>
+                    {% else %}
+                        <span class="text-danger">Не завершён</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.status == 'not_started' %}
+                        <form method="post" action="{% url 'mark_material_completed' item.material.id %}">
+                            {% csrf_token %}
+                            <input type="checkbox" name="completed" onchange="this.form.submit();">
+                        </form>
+                    {% else %}
+                        Завершено
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mt-4">
+        <h4>Тесты:</h4>
+        <ul>
+            {% for test in tests %}
+            <li>
+                <!-- Проверяем завершение этапа и показываем кнопку теста -->
+                {% if stage_completion|get_item:test.stage_number %}
+                    <a href="{% url 'test_intro' test.id %}" class="btn btn-primary">Пройти тест для этапа {{ test.stage_number }}</a>
+                {% else %}
+                    <span class="text-muted">Тест для этапа {{ test.stage_number }} недоступен. Пройдите все материалы этого этапа.</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="mt-4">
+        <h4>Итоги:</h4>
+        <p>Пройдено материалов: {{ progress_summary.completed }} из {{ progress_summary.total }}</p>
+        <p>Осталось материалов: {{ progress_summary.remaining }}</p>
+        <p>Время до завершения стажировки: {{ progress_summary.time_left }} дней</p>
+    </div>
+</div>
+{% endblock %}

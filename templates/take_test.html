@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load timer_filters %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Прохождение теста: {{ test.title }}</h2>
+
+    <!-- Таймер -->
+    <div id="timer" class="alert alert-info">
+        Время до завершения: <span id="time-left">{{ time_left|minutes }}:{{ time_left|seconds|stringformat:"02d" }}</span>
+    </div>
+
+    <form id="test-form" method="post">
+        {% csrf_token %}
+        <div class="question">
+            <h4>{{ current_question_number }}. {{ current_question.text }}</h4>
+
+            {% if current_question.question_type == 'single' %}
+                <!-- Один верный ответ -->
+                {% for answer in current_question.answers_shuffled %}
+                    <div class="form-check">
+                        <input type="radio" name="question_{{ current_question.id }}" value="{{ answer.id }}" class="form-check-input" required>
+                        <label class="form-check-label">{{ answer.text }}</label>
+                    </div>
+                {% endfor %}
+
+            {% elif current_question.question_type == 'true_false' %}
+                <!-- Верно/Неверно -->
+                <div class="form-check">
+                    <input type="radio" name="question_{{ current_question.id }}" value="true" class="form-check-input" required>
+                    <label class="form-check-label">Верно</label>
+                </div>
+                <div class="form-check">
+                    <input type="radio" name="question_{{ current_question.id }}" value="false" class="form-check-input" required>
+                    <label class="form-check-label">Неверно</label>
+                </div>
+
+            {% elif current_question.question_type == 'multiple' %}
+                <!-- Несколько верных ответов -->
+                {% for answer in current_question.answers_shuffled %}
+                    <div class="form-check">
+                        <input type="checkbox" name="question_{{ current_question.id }}_answers" value="{{ answer.id }}" class="form-check-input">
+                        <label class="form-check-label">{{ answer.text }}</label>
+                    </div>
+                {% endfor %}
+
+            {% elif current_question.question_type == 'sequence' %}
+                <!-- Последовательность -->
+                <p>Выберите правильный порядок:</p>
+                <ul>
+                    {% for answer in current_question.answers_shuffled %}
+                        <li>
+                            <input type="number" name="question_{{ current_question.id }}_order_{{ answer.id }}" min="1" max="{{ current_question.answers.count }}" class="form-control d-inline-block" style="width: 60px;">
+                            {{ answer.text }}
+                        </li>
+                    {% endfor %}
+                </ul>
+
+            {% elif current_question.question_type == 'match' %}
+                <!-- Соответствие -->
+                <p>Сопоставьте пары:</p>
+                <ul>
+                    {% for answer in current_question.answers_shuffled %}
+                        <li>
+                            {{ answer.text }} — <input type="text" name="question_{{ current_question.id }}_match_{{ answer.id }}" class="form-control d-inline-block" style="width: 300px;">
+                        </li>
+                    {% endfor %}
+                </ul>
+
+            {% endif %}
+        </div>
+
+        <hr>
+
+        <div class="mt-3">
+            {% if not is_last_question %}
+                <button type="submit" class="btn btn-primary">Следующий вопрос</button>
+            {% else %}
+                <button type="submit" class="btn btn-success">Завершить тест</button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Скрипт для таймера -->
+<script>
+    const timerElement = document.getElementById('time-left');
+    let timeLeft = {{ time_left }};
+
+    function updateTimer() {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerElement.textContent = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        if (timeLeft > 0) {
+            timeLeft--;
+        } else {
+            document.getElementById('test-form').submit();  // Завершить тест при истечении времени
+        }
+    }
+
+    setInterval(updateTimer, 1000);
+</script>
+{% endblock %}

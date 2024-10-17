@@ -1,0 +1,133 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Платформа стажировок{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href='{% static 'css/bootstrap.min.css' %}' rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+
+    {% block extra_head %}
+    {% endblock %}
+</head>
+<body>
+    <!-- Sticky Header -->
+    <header class="sticky-header">
+        <nav class="navbar">
+            <!-- Бургер-меню для мобильных устройств -->
+            <a href="#" class="burger-menu" onclick="openMenu()">&#9776;</a>
+
+            <!-- Обычное меню для больших экранов -->
+            <ul class="nav ml-auto">
+                {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a href="{% url 'home' %}" class="nav-link">Главная</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'user_list' %}" class="nav-link">Пользователи</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'department_list' %}" class="nav-link">Департаменты</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'position_list' %}" class="nav-link">Позиции</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'material_list' %}" class="nav-link">Материалы</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'internship_list' %}" class="nav-link">Стажировки</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'dashboard' %}" class="nav-link">Прогресс</a>
+                    </li>
+                    {% if user.role == 'intern' %}
+                        <li class="nav-item">
+                            <a href="{% url 'intern_materials' %}" class="nav-link">Мои материалы</a>
+                        </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a href="{% url 'notifications' %}" class="nav-link">Уведомления</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'tests_list' %}" class="nav-link">Тесты</a>
+                    </li>
+                    <li class="nav-item">
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-link nav-link" style="display:inline;">Выйти</button>
+                        </form>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'login' %}">Войти</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Side Menu (бургер-меню для мобильных устройств) -->
+    <div id="sideMenu" class="side-menu">
+        <a href="javascript:void(0)" class="close-btn" onclick="closeMenu()">×</a>
+        <a href="{% url 'home' %}">Главная</a>
+        <a href="{% url 'user_list' %}">Пользователи</a>
+        <a href="{% url 'department_list' %}">Департаменты</a>
+        <a href="{% url 'position_list' %}">Позиции</a>
+        <a href="{% url 'material_list' %}">Материалы</a>
+        <a href="{% url 'internship_list' %}">Стажировки</a>
+        <a href="{% url 'dashboard' %}">Прогресс</a>
+        {% if user.is_authenticated and user.role == 'intern' %}
+            <a href="{% url 'intern_materials' %}">Мои материалы</a>
+        {% endif %}
+        <a href="{% url 'notifications' %}">Уведомления</a>
+        <a href="{% url 'tests_list' %}">Тесты</a>
+
+        <!-- Добавляем стили для входа/выхода -->
+        {% if user.is_authenticated %}
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-link nav-link" style="text-align: left;">Выйти</button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}">Войти</a>
+        {% endif %}
+    </div>
+
+    <div class="container">
+        {% block content %}
+            {% if messages %}
+              <div class="container mt-3">
+                  {% for message in messages %}
+                  <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+        {% endblock %}
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+
+    <!-- JavaScript для бургер-меню -->
+    <script>
+        function openMenu() {
+            document.getElementById("sideMenu").classList.add("open");  // Открытие меню с анимацией
+        }
+
+        function closeMenu() {
+            document.getElementById("sideMenu").classList.remove("open");  // Закрытие меню с анимацией
+        }
+    </script>
+
+    {% block extra_scripts %}
+    {% endblock %}
+</body>
+</html>
