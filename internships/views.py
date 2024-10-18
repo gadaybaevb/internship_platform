@@ -143,7 +143,7 @@ def assign_mentor(request, internship_id):
         messages.success(request, f"Ментор {mentor.username} назначен для стажера {internship.intern.username}, позиция {position.name}.")
 
         message = f"Ментор {mentor.username} назначен для стажера {internship.intern.username}, позиция {position.name}."
-        Notification.objects.create(user=internship.intern.username, message=message)
+        Notification.objects.create(user=internship.intern, message=message)
 
         return redirect('internship_list')
 
