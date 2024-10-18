@@ -22,12 +22,12 @@
     <!-- Sticky Header -->
     <header class="sticky-header">
         <nav class="navbar">
-        
+
             <!-- Логотип -->
             <a href="{% url 'home' %}">
                 <img src="{% static 'img/logo_arkon.png' %}" alt="Логотип" height="50">
             </a>
-        
+
             <!-- Бургер-меню для мобильных устройств -->
             <a href="#" class="burger-menu" onclick="openMenu()">&#9776;</a>
 
@@ -71,8 +71,15 @@
                         </li>
                     {% endif %}
 
-                    <li class="nav-item">
-                        <a href="{% url 'notifications' %}" class="nav-link">Уведомления</a>
+                    <li class="nav-item position-relative">
+                        <a href="{% url 'notifications' %}" class="nav-link">
+                            Уведомления
+                            {% if unread_count > 0 %}
+                                <span class="badge badge-danger text-white position-absolute" style="top: -5px; right: -10px; background-color: red !important;">
+                                    {{ unread_count }}
+                                </span>
+                            {% endif %}
+                        </a>
                     </li>
 
                     <li class="nav-item">
@@ -101,15 +108,23 @@
         {% endif %}
         {% if user.is_authenticated and user.role == 'admin' or user.role == 'mentor' %}
             <a href="{% url 'material_list' %}">Материалы</a>
-            <a href="{% url 'dashboard' %}">Прогресс</a>
             <a href="{% url 'internship_list' %}">Стажировки</a>
             <a href="{% url 'tests_list' %}">Тесты</a>
         {% endif %}
-        
+        <a href="{% url 'dashboard' %}">Прогресс</a>
         {% if user.is_authenticated and user.role == 'intern' %}
             <a href="{% url 'intern_materials' %}">Мои материалы</a>
         {% endif %}
-        <a href="{% url 'notifications' %}">Уведомления</a>
+        <li class="nav-item position-relative">
+            <a href="{% url 'notifications' %}" class="nav-link">
+                Уведомления
+                {% if unread_count > 0 %}
+                    <span class="badge badge-danger text-white position-absolute" style="top: -5px; right: -10px; background-color: red !important;">
+                        {{ unread_count }}
+                    </span>
+                {% endif %}
+            </a>
+        </li>
 
         <!-- Добавляем стили для входа/выхода -->
         {% if user.is_authenticated %}
@@ -150,7 +165,3 @@
         }
     </script>
 
-    {% block extra_scripts %}
-    {% endblock %}
-</body>
-</html>

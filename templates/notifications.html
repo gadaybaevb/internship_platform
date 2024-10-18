@@ -1,21 +1,68 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container mt-4">
-    <h2>Уведомления</h2>
+    <h2 class="mb-4">Уведомления</h2>
 
-    {% if notifications %}
-        <ul class="list-group">
-            {% for notification in notifications %}
-                <li class="list-group-item {% if not notification.is_read %}list-group-item-warning{% endif %}">
-                    {{ notification.message }} ({{ notification.created_at|date:"d.m.Y H:i" }})
-                    {% if not notification.is_read %}
-                        <a href="{% url 'mark_notification_read' notification.id %}" class="btn btn-sm btn-primary float-right">Отметить как прочитанное</a>
-                    {% endif %}
-                </li>
+    <!-- Счетчики уведомлений -->
+    <div class="alert alert-secondary">
+        <p><strong>Непрочитанных сообщений:</strong> {{ unread_count }}</p>
+        <p><strong>Прочитанные:</strong> {{ read_count }}</p>
+        <p><strong>Итого:</strong> {{ total_count }}</p>
+    </div>
+
+    {% if page_obj %}
+        <div class="row">
+            {% for notification in page_obj %}
+                <div class="col-md-6 mb-3">
+                    <div class="card {% if not notification.is_read %}border-warning{% else %}border-secondary{% endif %}">
+                        <div class="card-body">
+                            <h5 class="card-title {% if not notification.is_read %}text-warning{% else %}text-muted{% endif %}">
+                                {{ notification.created_at|date:"d.m.Y H:i" }}
+                            </h5>
+                            <p class="card-text">
+                                {{ notification.message }}
+                            </p>
+                            {% if not notification.is_read %}
+                                <a href="{% url 'mark_notification_read' notification.id %}" class="btn btn-sm btn-success">Отметить как прочитанное</a>
+                            {% else %}
+                                <span class="badge badge-secondary">Прочитано</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             {% endfor %}
-        </ul>
+        </div>
+
+        <!-- Пагинация -->
+        <nav aria-label="Пагинация уведомлений">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1">Первая</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <a class="page-link" href="#">{{ page_obj.number }}</a>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Последняя</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
     {% else %}
-        <p>У вас нет новых уведомлений.</p>
+        <div class="alert alert-info">
+            У вас нет новых уведомлений.
+        </div>
     {% endif %}
 </div>
 {% endblock %}
