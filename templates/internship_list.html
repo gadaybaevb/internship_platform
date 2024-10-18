@@ -38,12 +38,28 @@
                         Не назначен
                     {% endif %}
                 </td>
-                <td>{{ internship.position.name }}</td>  <!-- Позиция стажера -->
-                <td>{{ internship.position.duration_days }} дней</td> <!-- Срок стажировки -->
                 <td>
-                    Этапов: {{ internship.position.stages_count }},
-                    Промежуточный тест после этапа: {{ internship.position.intermediate_test_after_stage }},
-                    Финальный тест через {{ internship.position.final_test_after_days }} дней
+                    {% if internship.position %}
+                        {{ internship.position.name }}
+                    {% else %}
+                        Не указана
+                    {% endif %}
+                </td>
+                <td>
+                    {% if internship.position %}
+                        {{ internship.position.duration_days }} дней
+                    {% else %}
+                        Не указано
+                    {% endif %}
+                </td>
+                <td>
+                    {% if internship.position %}
+                        Этапов: {{ internship.position.stages_count }},
+                        Промежуточный тест после этапа: {{ internship.position.intermediate_test_after_stage }},
+                        Финальный тест через {{ internship.position.final_test_after_days }} дней
+                    {% else %}
+                        Не указаны
+                    {% endif %}
                 </td>
                 <td>
                     {% if internship.is_completed %}
