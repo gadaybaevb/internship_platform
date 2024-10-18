@@ -7,11 +7,74 @@ from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth import update_session_auth_hash
 from django.contrib import messages
 from django.urls import reverse_lazy
+from internships.models import Internship, MaterialProgress, StageProgress
+from django.utils.timezone import now
+from datetime import timedelta, date
 
 
+
+from django.utils.timezone import now
+from datetime import timedelta, date
 
 def home(request):
-    return render(request, 'home.html')
+    user = request.user
+    context = {}
+
+    if user.role == 'admin':
+        # Администраторский контент
+        current_month = now().month
+        current_year = now().year
+
+        interns_this_month = Internship.objects.filter(start_date__month=current_month, start_date__year=current_year).count()
+        mentors_this_month = Internship.objects.filter(start_date__month=current_month, start_date__year=current_year).values('mentor').distinct().count()
+
+        total_interns = Internship.objects.count()
+        total_mentors = Internship.objects.values('mentor').distinct().count()
+
+        context.update({
+            'interns_this_month': interns_this_month,
+            'mentors_this_month': mentors_this_month,
+            'total_interns': total_interns,
+            'total_mentors': total_mentors,
+        })
+
+    elif user.role == 'mentor':
+        # Контент для ментора
+        current_month = now().month
+        current_year = now().year
+
+        interns_this_month = Internship.objects.filter(mentor=user, start_date__month=current_month, start_date__year=current_year)
+        total_interns = Internship.objects.filter(mentor=user)
+
+        context.update({
+            'interns_this_month': interns_this_month,
+            'total_interns': total_interns,
+        })
+
+    elif user.role == 'intern':
+        # Контент для стажера
+        internship = Internship.objects.filter(intern=user).first()
+
+        if internship:
+            materials = MaterialProgress.objects.filter(intern=user)
+            completed_materials = materials.filter(status='completed').count()
+            total_materials = materials.count()
+
+            # Оставшиеся дни до окончания стажировки
+            end_date = internship.start_date + timedelta(days=internship.position.duration_days)
+
+            # Преобразуем `now()` в `date`, чтобы обе переменные были одного типа
+            days_left = (end_date - now().date()).days
+
+            context.update({
+                'completed_materials': completed_materials,
+                'total_materials': total_materials,
+                'days_left': days_left,
+                'internship': internship,
+            })
+
+    return render(request, 'home.html', context)
+
 
 
 def register(request):

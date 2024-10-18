@@ -12,6 +12,9 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 
+    <!-- Favicon -->
+    <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
+
     {% block extra_head %}
     {% endblock %}
 </head>
@@ -19,6 +22,12 @@
     <!-- Sticky Header -->
     <header class="sticky-header">
         <nav class="navbar">
+        
+            <!-- Логотип -->
+            <a href="{% url 'home' %}">
+                <img src="{% static 'img/logo_arkon.png' %}" alt="Логотип" height="50">
+            </a>
+        
             <!-- Бургер-меню для мобильных устройств -->
             <a href="#" class="burger-menu" onclick="openMenu()">&#9776;</a>
 
@@ -28,35 +37,44 @@
                     <li class="nav-item">
                         <a href="{% url 'home' %}" class="nav-link">Главная</a>
                     </li>
-                    <li class="nav-item">
-                        <a href="{% url 'user_list' %}" class="nav-link">Пользователи</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'department_list' %}" class="nav-link">Департаменты</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'position_list' %}" class="nav-link">Позиции</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'material_list' %}" class="nav-link">Материалы</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'internship_list' %}" class="nav-link">Стажировки</a>
-                    </li>
+                    {% if user.role == 'admin' %}
+                        <li class="nav-item">
+                            <a href="{% url 'user_list' %}" class="nav-link">Пользователи</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'department_list' %}" class="nav-link">Департаменты</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'position_list' %}" class="nav-link">Позиции</a>
+                        </li>
+                    {% endif %}
+
+                    {% if user.role == 'admin' or user.role == 'mentor' %}
+                        <li class="nav-item">
+                            <a href="{% url 'material_list' %}" class="nav-link">Материалы</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'internship_list' %}" class="nav-link">Стажировки</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'tests_list' %}" class="nav-link">Тесты</a>
+                        </li>
+                    {% endif %}
+
                     <li class="nav-item">
                         <a href="{% url 'dashboard' %}" class="nav-link">Прогресс</a>
                     </li>
+
                     {% if user.role == 'intern' %}
                         <li class="nav-item">
                             <a href="{% url 'intern_materials' %}" class="nav-link">Мои материалы</a>
                         </li>
                     {% endif %}
+
                     <li class="nav-item">
                         <a href="{% url 'notifications' %}" class="nav-link">Уведомления</a>
                     </li>
-                    <li class="nav-item">
-                        <a href="{% url 'tests_list' %}" class="nav-link">Тесты</a>
-                    </li>
+
                     <li class="nav-item">
                         <form method="post" action="{% url 'logout' %}">
                             {% csrf_token %}
@@ -76,17 +94,22 @@
     <div id="sideMenu" class="side-menu">
         <a href="javascript:void(0)" class="close-btn" onclick="closeMenu()">×</a>
         <a href="{% url 'home' %}">Главная</a>
-        <a href="{% url 'user_list' %}">Пользователи</a>
-        <a href="{% url 'department_list' %}">Департаменты</a>
-        <a href="{% url 'position_list' %}">Позиции</a>
-        <a href="{% url 'material_list' %}">Материалы</a>
-        <a href="{% url 'internship_list' %}">Стажировки</a>
-        <a href="{% url 'dashboard' %}">Прогресс</a>
+        {% if user.is_authenticated and user.role == 'admin' %}
+            <a href="{% url 'user_list' %}">Пользователи</a>
+            <a href="{% url 'department_list' %}">Департаменты</a>
+            <a href="{% url 'position_list' %}">Позиции</a>
+        {% endif %}
+        {% if user.is_authenticated and user.role == 'admin' or user.role == 'mentor' %}
+            <a href="{% url 'material_list' %}">Материалы</a>
+            <a href="{% url 'dashboard' %}">Прогресс</a>
+            <a href="{% url 'internship_list' %}">Стажировки</a>
+            <a href="{% url 'tests_list' %}">Тесты</a>
+        {% endif %}
+        
         {% if user.is_authenticated and user.role == 'intern' %}
             <a href="{% url 'intern_materials' %}">Мои материалы</a>
         {% endif %}
         <a href="{% url 'notifications' %}">Уведомления</a>
-        <a href="{% url 'tests_list' %}">Тесты</a>
 
         <!-- Добавляем стили для входа/выхода -->
         {% if user.is_authenticated %}

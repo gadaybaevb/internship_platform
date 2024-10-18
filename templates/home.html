@@ -2,7 +2,74 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h1>{{ request.user.full_name }} Добро пожаловать на платформу стажировок</h1>
+    <h1>Добро пожаловать <b>{{ request.user.full_name }},</b> на платформу стажировок от компании ARKON</h1>
     <p>Здесь вы можете управлять своими стажировками, проходить тесты и отслеживать прогресс.</p>
+
+    {% if request.user.role == 'admin' %}
+        <h3>Итоги за текущий месяц</h3>
+        <ul>
+            <li>Стажеров: {{ interns_this_month }}</li>
+            <li>Менторов: {{ mentors_this_month }}</li>
+        </ul>
+
+        <h3>Итоги за весь период</h3>
+        <ul>
+            <li>Стажеров: {{ total_interns }}</li>
+            <li>Менторов: {{ total_mentors }}</li>
+        </ul>
+
+    {% elif request.user.role == 'mentor' %}
+        <h3>Стажеры за текущий месяц</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ФИО</th>
+                    <th>Позиция</th>
+                    <th>Этапы</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for intern in interns_this_month %}
+                <tr>
+                    <td>{{ intern.intern.full_name }}</td>
+                    <td>{{ intern.position.name }}</td>
+                    <td>Этапов: {{ intern.stage_progresses.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3>Все стажеры</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ФИО</th>
+                    <th>Позиция</th>
+                    <th>Этапы</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for intern in total_interns %}
+                <tr>
+                    <td>{{ intern.intern.full_name }}</td>
+                    <td>{{ intern.position.name }}</td>
+                    <td>Этапов: {{ intern.stage_progresses.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    {% elif request.user.role == 'intern' %}
+        <h3>Моя стажировка</h3>
+        {% if internship %}
+            <ul>
+                <li>Пройдено материалов: {{ completed_materials }} из {{ total_materials }}</li>
+                <li>Осталось материалов: {{ remaining_materials }}</li>
+                <li>Оставшиеся дни: {{ days_left }}</li>
+            </ul>
+        {% else %}
+            <p>У вас нет активной стажировки.</p>
+        {% endif %}
+    {% endif %}
 </div>
 {% endblock %}
