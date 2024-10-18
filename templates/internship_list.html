@@ -62,7 +62,7 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if internship.is_completed %}
+                    {% if internship.position and internship.is_completed %}
                         <span class="badge bg-success">Завершён</span>
                     {% else %}
                         <span class="badge bg-warning">В прогрессе</span>
