@@ -28,6 +28,6 @@ class CustomUser(AbstractUser):
     full_name = models.CharField(max_length=255)  # Добавляем поле ФИО
 
     def __str__(self):
-        return f'{self.username} ({self.position.name})'
+        return f'{self.username} ({self.position.name if self.position else "No position"})'
 
 
