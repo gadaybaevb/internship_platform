@@ -44,14 +44,21 @@
 
     <div class="mt-4">
         <h4>Тесты:</h4>
-        <ul>
-            {% for test in tests %}
+        <ul class="list-unstyled">
+            {% for test_data in tests %}
             <li>
-                <!-- Проверяем завершение этапа и показываем кнопку теста -->
-                {% if stage_completion|get_item:test.stage_number %}
-                    <a href="{% url 'test_intro' test.id %}" class="btn btn-primary">Пройти тест для этапа {{ test.stage_number }}</a>
+                {% if test_data.is_completed %}
+                    <!-- Если тест уже пройден, выводим результаты -->
+                    <div class="alert alert-info">
+                        <strong>Тест "{{ test_data.test.title }}" пройден.</strong><br>
+                        Результат: {{ test_data.result.score }}%<br>
+                        Правильных ответов: {{ test_data.result.correct_answers_count }} из {{ test_data.result.total_questions_count }}<br>
+                        Завершено: {{ test_data.result.completed_at|date:"d.m.Y H:i" }}
+                    </div>
+                {% elif stage_completion|get_item:test_data.test.stage_number %}
+                    <a href="{% url 'test_intro' test_data.test.id %}" class="btn btn-primary">Пройти тест для этапа {{ test_data.test.stage_number }}</a>
                 {% else %}
-                    <span class="text-muted">Тест для этапа {{ test.stage_number }} недоступен. Пройдите все материалы этого этапа.</span>
+                    <span class="text-muted">Тест для этапа {{ test_data.test.stage_number }} недоступен. Пройдите все материалы этого этапа и дождитесь подтверждения ментора.</span>
                 {% endif %}
             </li>
             {% endfor %}

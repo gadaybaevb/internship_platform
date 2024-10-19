@@ -21,6 +21,7 @@
                 <th>Стажер</th>
                 <th>Ментор</th>
                 <th>Позиция</th>
+                <th>Департамент</th>
                 <th>Сроки стажировки</th>
                 <th>Этапы</th>
                 <th>Статус</th>
@@ -30,10 +31,12 @@
         <tbody>
             {% for internship in page_obj %}
             <tr>
-                <td>{{ internship.intern.username }}</td>
+                <td>
+                    {{ internship.intern.full_name }}
+                </td>
                 <td>
                     {% if internship.mentor %}
-                        {{ internship.mentor.username }}
+                        {{ internship.mentor.full_name }}
                     {% else %}
                         Не назначен
                     {% endif %}
@@ -43,6 +46,13 @@
                         {{ internship.position.name }}
                     {% else %}
                         Не указана
+                    {% endif %}
+                </td>
+                <td>
+                    {% if internship.intern.department %}
+                        {{ internship.intern.department.name }}
+                    {% else %}
+                        Не указан
                     {% endif %}
                 </td>
                 <td>

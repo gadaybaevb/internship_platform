@@ -11,7 +11,7 @@ from .utils import create_stage_progress
 from datetime import timedelta, datetime
 from django.utils import timezone
 from notifications.models import Notification
-from tests.models import Test
+from tests.models import Test, TestResult
 
 
 User = get_user_model()
@@ -282,7 +282,6 @@ def intern_materials(request):
     # Готовим данные о прогрессе по материалам и этапам
     material_list = []
     for material in materials:
-        # Создаем запись в StageProgress, если её нет для текущего этапа
         stage_progress, created = StageProgress.objects.get_or_create(
             intern=intern,
             position=intern.position,
@@ -293,7 +292,7 @@ def intern_materials(request):
         material_progress = MaterialProgress.objects.filter(intern=intern, material=material).first()
 
         if material_progress:
-            status = material_progress.status  # Статус берем напрямую из базы
+            status = material_progress.status
         else:
             status = 'not_started'
 
@@ -320,19 +319,40 @@ def intern_materials(request):
         'time_left': time_left,
     }
 
-    # Получаем все тесты, привязанные к позиции
     tests = Test.objects.filter(position=intern.position)
 
-    # Проверяем завершение этапов для тестов
     stage_completion = {}
+    test_results = []  # Список для хранения информации о тестах и результатах
     for stage in StageProgress.objects.filter(intern=intern, position=intern.position):
-        stage_completion[stage.stage] = stage.completed
+        materials_in_stage = Material.objects.filter(position=intern.position, stage=stage.stage)
+        confirmed_materials = MaterialProgress.objects.filter(intern=intern, material__in=materials_in_stage, status='completed').count()
+
+        if confirmed_materials == materials_in_stage.count():
+            stage_completion[stage.stage] = True
+        else:
+            stage_completion[stage.stage] = False
+
+    # Проверяем результаты тестов и передаем уже обработанные данные
+    for test in tests:
+        result = TestResult.objects.filter(user=intern, test=test).first()
+        if result:
+            test_results.append({
+                'test': test,
+                'result': result,
+                'is_completed': True
+            })
+        else:
+            test_results.append({
+                'test': test,
+                'result': None,
+                'is_completed': False
+            })
 
     return render(request, 'intern_materials.html', {
-        'materials': material_list,  # Передаем список материалов и их статусы
+        'materials': material_list,
         'progress_summary': progress_summary,
-        'tests': tests,  # Передаем тесты
-        'stage_completion': stage_completion,  # Передаем завершение этапов
+        'tests': test_results,  # Передаем тесты и результаты тестов
+        'stage_completion': stage_completion
     })
 
 
