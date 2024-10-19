@@ -246,7 +246,6 @@ def dashboard(request):
     return render(request, 'mentor_admin_dashboard.html', {'page_obj': page_obj, 'role': user.role})
 
 
-
 def update_stage_progress(request, stage_id):
     stage = get_object_or_404(StageProgress, id=stage_id)
 
@@ -392,7 +391,6 @@ def mark_material_completed(request, material_id):
         messages.success(request, 'Материал был отмечен как завершённый, ожидается подтверждение ментора.')
 
     return redirect('intern_materials')
-
 
 
 def check_stage_completion(intern, stage):

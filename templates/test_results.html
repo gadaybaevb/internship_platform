@@ -4,12 +4,12 @@
     <h2>Результаты теста: {{ test.title }}</h2>
 
     {% if test_result %}
-        <p>ФИО: {{ test_result.user.get_full_name }}</p>
+        <p>ФИО: {{ test_result.user.get_full_name }} ({{ test_result.user.username }})</p>
         <p>Ваш результат: {{ test_result.score }}%</p>
         <p>Время завершения: {{ test_result.completed_at|date:"d.m.Y H:i" }}</p>
         <p>Правильные ответы: {{ test_result.correct_answers_count }} из {{ test_result.total_questions_count }}</p>
 
-        {% if test_result.score|floatformat:2 >= test.passing_score|floatformat:2 %}
+        {% if test_score >= passing_score %}
             <div class="alert alert-success">
                 Поздравляем!! Вы успешно прошли тест.
             </div>

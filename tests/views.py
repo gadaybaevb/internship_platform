@@ -7,7 +7,7 @@ from django.forms import modelformset_factory
 from django.utils import timezone
 import random
 from notifications.models import Notification
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 
 def take_test(request, test_id):
@@ -417,15 +417,17 @@ def test_results(request, test_id):
         messages.error(request, 'Результат теста не найден. Сначала завершите тест.')
         return redirect('test_intro', test_id=test.id)
 
-    test_score = Decimal(test_result.score)
-    passing_score = Decimal(test.passing_score)
+    test_score = Decimal(test_result.score).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)  # Округляем до двух знаков
+    passing_score = Decimal(test.passing_score).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)  # Округляем до двух знаков
     # Далее продолжаем логику работы с результатом теста
-    if test_score >= passing_score:
+    if test_score >= round(passing_score, 0):
         messages.success(request, 'Поздравляем! Вы прошли тест.')
     else:
         messages.error(request, 'К сожалению, вы не прошли тест.')
 
-    return render(request, 'test_results.html', {'test_result': test_result})
+    message = f"Стажер {user.username} ({user.full_name}) сдал зкзамен {test_result.test}, на {test_score}."
+    Notification.objects.create(user=user, message=message)
+    return render(request, 'test_results.html', {'test_result': test_result, 'test_score': test_score, 'passing_score': passing_score})
 
 
 def test_instructions(request, test_id):

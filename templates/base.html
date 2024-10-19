@@ -59,11 +59,12 @@
                         <li class="nav-item">
                             <a href="{% url 'tests_list' %}" class="nav-link">Тесты</a>
                         </li>
+                        <li class="nav-item">
+                            <a href="{% url 'dashboard' %}" class="nav-link">Прогресс</a>
+                        </li>
                     {% endif %}
 
-                    <li class="nav-item">
-                        <a href="{% url 'dashboard' %}" class="nav-link">Прогресс</a>
-                    </li>
+                    
 
                     {% if user.role == 'intern' %}
                         <li class="nav-item">
