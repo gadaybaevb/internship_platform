@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Отчет по департаментам, позициям, материалам и тестам</h2>
+
+    <!-- Форма для фильтрации по департаментам -->
+    <form method="get" class="mb-4">
+        <div class="row">
+            <div class="col-md-4">
+                <input type="text" name="department" class="form-control" placeholder="Фильтр по департаменту" value="{{ department_query }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-block">Применить фильтр</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Таблица с отчетом по департаментам -->
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Департамент</th>
+                    <th>Позиция</th>
+                    <th>Этап</th>
+                    <th>Количество материалов</th>
+                    <th>Количество тестов</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for department_stat in department_stats %}
+                <tr>
+                    <td rowspan="{{ department_stat.positions|length }}">{{ forloop.counter }}</td>
+                    <td rowspan="{{ department_stat.positions|length }}">{{ department_stat.department.name }}</td>
+
+                    {% for position_data in department_stat.positions %}
+                    {% if forloop.first %}
+                    <td>{{ position_data.position.name }}</td>
+
+                    <td>
+                        <ul>
+                            {% for stage in position_data.stages %}
+                            <li>Этап {{ stage.stage }}: {{ stage.materials_per_stage }} материалов</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>{{ position_data.materials_count }}</td>
+                    <td>{{ position_data.tests_count }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td>{{ position_data.position.name }}</td>
+                        <td>
+                            <ul>
+                                {% for stage in position_data.stages %}
+                                <li>Этап {{ stage.stage }}: {{ stage.materials_per_stage }} материалов</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                        <td>{{ position_data.materials_count }}</td>
+                        <td>{{ position_data.tests_count }}</td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Кнопка для печати -->
+    <div class="mt-4">
+        <button onclick="window.print()" class="btn btn-primary">Печать отчета</button>
+    </div>
+</div>
+{% endblock %}

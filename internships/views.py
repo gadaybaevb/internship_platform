@@ -3,7 +3,7 @@ from .models import Material, Position, Internship, StageProgress, MaterialProgr
 from departments.models import Department
 from django.contrib.auth import get_user_model
 from .forms import MaterialForm
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from django.contrib import messages
 from users.models import CustomUser
@@ -12,6 +12,8 @@ from datetime import timedelta, datetime
 from django.utils import timezone
 from notifications.models import Notification
 from tests.models import Test, TestResult
+from django.utils.dateparse import parse_date
+from django.db.models import Avg, F
 
 
 User = get_user_model()
@@ -181,6 +183,7 @@ def dashboard(request):
     if user.role == 'admin':
         # Администратор видит всех стажеров и их прогресс
         internships = Internship.objects.all()
+
     elif user.role == 'mentor':
         # Ментор видит только своих стажеров
         internships = Internship.objects.filter(mentor=user)
@@ -192,6 +195,8 @@ def dashboard(request):
                 status='pending'
             ).count()
             internship.pending_materials_count = pending_materials_count
+            # Добавляем информацию о том, завершена ли стажировка
+            internship.is_completed = internship.is_completed()
 
         # Если ментор выбирает стажера, он видит его прогресс
         intern_id = request.GET.get('intern_id')
@@ -478,3 +483,229 @@ def confirm_material_completion(request, progress_id):
         return redirect('dashboard')  # Перенаправляем ментора на его дашборд
 
     return redirect('mentor_view_intern_materials', intern_id=material_progress.intern.id)
+
+
+def intern_report(request, intern_id):
+    intern = get_object_or_404(CustomUser, id=intern_id)
+    internship = get_object_or_404(Internship, intern=intern)
+
+    # Получаем все тесты, которые прошел стажер
+    test_results = TestResult.objects.filter(user=intern)
+
+    # Дата добавления в систему (это поле должно быть в CustomUser)
+    date_added = intern.date_joined
+
+    # Дата завершения стажировки (дата последнего теста)
+    if test_results.exists():
+        completion_date = test_results.order_by('-completed_at').first().completed_at
+    else:
+        completion_date = None
+
+    # Ментор стажера
+    mentor = internship.mentor
+
+    return render(request, 'intern_report.html', {
+        'intern': intern,
+        'internship': internship,
+        'test_results': test_results,
+        'date_added': date_added,
+        'completion_date': completion_date,
+        'mentor': mentor,
+    })
+
+
+def reports_view(request):
+    return render(request, 'reports.html')
+
+
+def test_reports_view(request):
+    # Получаем параметры фильтрации
+    search_query = request.GET.get('search', '')
+    test_query = request.GET.get('test', '')
+    start_date = request.GET.get('start_date', '')
+    end_date = request.GET.get('end_date', '')
+
+    # Основной запрос для фильтрации
+    test_results = TestResult.objects.all().order_by('-completed_at')
+
+    # Фильтрация по ФИО стажера или по названию теста
+    if search_query:
+        test_results = test_results.filter(Q(user__full_name__icontains=search_query) | Q(user__username__icontains=search_query))
+
+    if test_query:
+        test_results = test_results.filter(test__title__icontains=test_query)
+
+    # Фильтрация по дате
+    if start_date:
+        test_results = test_results.filter(completed_at__gte=parse_date(start_date))
+    if end_date:
+        test_results = test_results.filter(completed_at__lte=parse_date(end_date))
+
+    # Пагинация результатов
+    paginator = Paginator(test_results, 10)  # 10 результатов на страницу
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'test_reports.html', {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'test_query': test_query,
+        'start_date': start_date,
+        'end_date': end_date,
+    })
+
+
+def completed_internships_report(request):
+    # Получаем параметры фильтрации
+    search_query = request.GET.get('search', '')
+    position_query = request.GET.get('position', '')
+    start_date = request.GET.get('start_date', '')
+    end_date = request.GET.get('end_date', '')
+
+    # Основной запрос для выборки завершенных стажировок
+    internships = Internship.objects.all()
+
+    # Фильтрация по ФИО стажера
+    if search_query:
+        internships = internships.filter(
+            Q(intern__full_name__icontains=search_query) |
+            Q(intern__username__icontains=search_query)
+        )
+
+    # Фильтрация по позиции
+    if position_query:
+        internships = internships.filter(position__name__icontains=position_query)
+
+    # Фильтрация по дате начала и завершения стажировки
+    if start_date:
+        internships = internships.filter(start_date__gte=parse_date(start_date))
+    if end_date:
+        internships = internships.filter(start_date__lte=parse_date(end_date))
+
+    # Фильтруем только завершенные стажировки
+    completed_internships = []
+    for internship in internships:
+        completed_stages = StageProgress.objects.filter(intern=internship.intern, completed=True)
+        all_tests = TestResult.objects.filter(user=internship.intern)
+        if completed_stages.exists() and all_tests.exists():
+            internship.completed_at = completed_stages.order_by('-completion_date').first().completion_date
+            internship.test_results = all_tests  # Добавляем результаты тестов
+            completed_internships.append(internship)
+
+    # Пагинация на 10 записей на страницу
+    paginator = Paginator(completed_internships, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'completed_internships_report.html', {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'position_query': position_query,
+        'start_date': start_date,
+        'end_date': end_date,
+    })
+
+
+def mentor_report(request):
+    department_query = request.GET.get('department', '')
+    start_date = request.GET.get('start_date', '')
+    end_date = request.GET.get('end_date', '')
+
+    mentors = CustomUser.objects.filter(role='mentor')
+
+    if department_query:
+        mentors = mentors.filter(department__name__icontains=department_query)
+
+    if start_date and end_date:
+        mentors = mentors.filter(intern_internships__start_date__range=[start_date, end_date])
+
+    mentor_stats = []
+
+    for mentor in mentors:
+        # Количество стажеров под руководством ментора
+        internships = Internship.objects.filter(mentor=mentor)
+        total_interns = internships.count()
+
+        # Количество завершенных стажировок
+        completed_internships = internships.filter(intern__stage_progresses__completed=True).distinct().count()
+
+        # Количество стажировок в процессе
+        in_progress_internships = total_interns - completed_internships
+
+        # Среднее время подтверждения материалов
+        avg_confirmation_time = MaterialProgress.objects.filter(
+            intern__in=internships.values_list('intern', flat=True),
+            status='completed'
+        ).aggregate(avg_time=Avg(F('confirmation_date') - F('completion_date')))
+
+        # Процент успешности по тестам (используем related_name 'test_results' в модели TestResult)
+        total_tests = TestResult.objects.filter(user__in=internships.values_list('intern', flat=True)).count()
+        successful_tests = TestResult.objects.filter(user__in=internships.values_list('intern', flat=True), score__gte=60).count()  # Считаем сданные тесты
+
+        if total_tests > 0:
+            test_success_rate = (successful_tests / total_tests) * 100
+        else:
+            test_success_rate = 0
+
+        mentor_stats.append({
+            'mentor': mentor,
+            'total_interns': total_interns,
+            'completed_internships': completed_internships,
+            'in_progress_internships': in_progress_internships,
+            'test_success_rate': test_success_rate,
+            'avg_confirmation_time': avg_confirmation_time['avg_time'] or timedelta(0),
+        })
+
+    return render(request, 'mentor_report.html', {
+        'mentor_stats': mentor_stats,
+        'department_query': department_query,
+        'start_date': start_date,
+        'end_date': end_date,
+    })
+
+
+def department_materials_report(request):
+    # Фильтрация по департаменту
+    department_query = request.GET.get('department', '')
+
+    departments = Department.objects.all()
+
+    if department_query:
+        departments = departments.filter(name__icontains=department_query)
+
+    department_stats = []
+
+    for department in departments:
+        # Позиции в этом департаменте
+        positions = Position.objects.filter(department=department)
+
+        position_data = []
+
+        for position in positions:
+            # Количество материалов для каждой позиции
+            materials_count = Material.objects.filter(position=position).count()
+
+            # Количество тестов для каждой позиции
+            tests_count = Test.objects.filter(position=position).count()
+
+            # Количество материалов для каждого этапа
+            stages = Material.objects.filter(position=position).values('stage').annotate(
+                materials_per_stage=Count('id'))
+
+            # Формируем данные для каждой позиции
+            position_data.append({
+                'position': position,
+                'materials_count': materials_count,
+                'tests_count': tests_count,
+                'stages': stages,
+            })
+
+        department_stats.append({
+            'department': department,
+            'positions': position_data,
+        })
+
+    return render(request, 'department_materials_report.html', {
+        'department_stats': department_stats,
+        'department_query': department_query,
+    })

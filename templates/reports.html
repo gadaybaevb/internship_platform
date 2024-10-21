@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Отчеты</h2>
+
+    <!-- Пример красивых стилизованных кнопок -->
+    <div class="d-flex flex-wrap justify-content-between mb-4">
+        <a href="{% url 'completed_internships_report' %}" class="btn btn-primary btn-lg mb-2">
+            Отчеты по стажировкам
+        </a>
+        <a href="{% url 'test_reports' %}" class="btn btn-success btn-lg mb-2">
+            Отчеты по тестам
+        </a>
+        <a href="{% url 'mentor_report' %}" class="btn btn-info btn-lg mb-2">
+            Отчеты по менторам
+        </a>
+        <a href="{% url 'department_materials_report' %}" class="btn btn-warning btn-lg mb-2">
+            Отчеты по материалам
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            Информация
+        </div>
+        <div class="card-body">
+            <p>Выберите интересующий вас отчет, нажав на соответствующую кнопку.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

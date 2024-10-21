@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Отчет по завершенным стажировкам</h2>
+
+    <!-- Форма для фильтрации и поиска -->
+    <form method="get" class="mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <input type="text" name="search" class="form-control" placeholder="ФИО стажера" value="{{ search_query }}">
+            </div>
+            <div class="col-md-3">
+                <input type="text" name="position" class="form-control" placeholder="Позиция" value="{{ position_query }}">
+            </div>
+            <div class="col-md-3">
+                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+            </div>
+            <div class="col-md-3">
+                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+            </div>
+            <div class="col-md-2 mt-2">
+                <button type="submit" class="btn btn-primary">Применить фильтр</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Таблица с завершенными стажировками -->
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>#</th> <!-- Нумерация строк -->
+                    <th>ФИО стажера</th>
+                    <th>Позиция</th>
+                    <th>Ментор</th>
+                    <th>Дата начала стажировки</th>
+                    <th>Дата завершения стажировки</th>
+                    <th>Результаты тестов</th> <!-- Новый столбец для тестов -->
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for internship in page_obj %}
+                <tr>
+                    <td>{{ forloop.counter }}</td> <!-- Номер строки -->
+                    <td>{{ internship.intern.full_name }}</td>
+                    <td>{{ internship.position.name }}</td>
+                    <td>
+                        {% if internship.mentor %}
+                            {{ internship.mentor.full_name }}
+                        {% else %}
+                            Не назначен
+                        {% endif %}
+                    </td>
+                    <td>{{ internship.start_date|date:"d.m.Y" }}</td>
+                    <td>{{ internship.completed_at|date:"d.m.Y" }}</td>
+                    <td>
+                        <ul>
+                            {% for result in internship.test_results %}
+                            <li>Тест: {{ result.test.title }} — Результат: {{ result.score }}% ({{ result.correct_answers_count }} из {{ result.total_questions_count }})</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>Завершена</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Пагинация -->
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">Первая</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <a class="page-link" href="#">{{ page_obj.number }}</a>
+            </li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Последняя</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <!-- Кнопка для печати -->
+    <div class="mt-4">
+        <button onclick="window.print()" class="btn btn-primary">Печать отчета</button>
+    </div>
+</div>
+{% endblock %}

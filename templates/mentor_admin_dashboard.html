@@ -14,8 +14,9 @@
                     <th>Этап</th>
                     <th>Статус</th>
                     <th>Дата завершения</th>
-                    <th>Материалы в ожидании</th> <!-- Новый столбец -->
+                    <th>Материалы в ожидании</th>
                     <th>Действия</th>
+                    <th>Отчет</th> <!-- Столбец для кнопки отчета -->
                 </tr>
             </thead>
             <tbody>
@@ -49,10 +50,7 @@
                                 —
                             {% endif %}
                         </td>
-                        <!-- Новый столбец с количеством материалов в статусе 'Ожидание' -->
-                        <td>
-                            {{ internship.pending_materials_count }} <!-- Используем новый ключ -->
-                        </td>
+                        <td>{{ internship.pending_materials_count }}</td>
                         <td>
                             {% if stage.status == 'pending' and not stage.completed %}
                                 <form method="post" action="{% url 'confirm_stage_progress' stage.id %}">
@@ -63,6 +61,12 @@
                                 {% if stage.completed %}
                                     Завершён
                                 {% endif %}
+                            {% endif %}
+                        </td>
+                        <!-- Столбец с кнопкой для отчета -->
+                        <td>
+                            {% if stage.stage == internship.intern.stage_progresses.all.last.stage and internship.is_completed %}
+                                <a href="{% url 'intern_report' internship.intern.id %}" class="btn btn-info btn-sm">Отчет</a>
                             {% endif %}
                         </td>
                     </tr>

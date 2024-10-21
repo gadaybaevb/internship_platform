@@ -144,3 +144,16 @@
         display: none;
     }
 }
+
+@media print {
+    form, .pagination, .btn-primary,
+    /* Скрываем бургер-меню при печати */
+    .burger-menu, .btn-print {
+        display: none;
+    }
+
+    /* Убедимся, что логотип виден при печати */
+    .logo {
+        display: none;
+    }
+}

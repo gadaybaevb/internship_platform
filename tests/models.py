@@ -2,6 +2,7 @@ from django.db import models
 from users.models import CustomUser
 from internships.models import StageProgress
 from departments.models import Position
+from django.apps import apps
 
 
 class Test(models.Model):
@@ -18,6 +19,8 @@ class Test(models.Model):
     def questions_count(self):
         """Возвращает количество вопросов, связанных с этим тестом"""
         return self.questions.count()  # Связь через related_name='questions' в модели Question
+
+
 
 
 class Question(models.Model):
@@ -58,3 +61,9 @@ class TestResult(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.test.title} - {self.score}"
+
+    def all_tests_completed(self):
+        """Проверка, сдал ли стажер все тесты."""
+        # Проверяем, сдал ли стажер все тесты для его позиции
+        return TestResult.objects.filter(user=self.intern).count() == Test.objects.filter(
+            position=self.position).count()

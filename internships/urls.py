@@ -12,6 +12,12 @@ from .views import (
     mark_material_completed,
     mentor_view_intern_materials,
     confirm_material_completion,
+    intern_report,
+    reports_view,
+    test_reports_view,
+    completed_internships_report,
+    mentor_report,
+    department_materials_report,
 )
 
 urlpatterns = [
@@ -30,4 +36,11 @@ urlpatterns = [
     path('materials/<int:material_id>/complete/', mark_material_completed, name='mark_material_completed'),
     path('interns/<int:intern_id>/materials/', mentor_view_intern_materials, name='mentor_view_intern_materials'),
     path('materials/confirm/<int:progress_id>/', confirm_material_completion, name='confirm_material_completion'),
+
+    path('intern_report/<int:intern_id>/', intern_report, name='intern_report'),
+    path('reports/', reports_view, name='reports'),
+    path('reports/tests/', test_reports_view, name='test_reports'),
+    path('reports/completed-internships/', completed_internships_report, name='completed_internships_report'),
+    path('reports/mentors-report/', mentor_report, name='mentor_report'),
+    path('reports/materials/', department_materials_report, name='department_materials_report'),
 ]
