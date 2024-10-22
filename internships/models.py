@@ -22,6 +22,9 @@ class Internship(models.Model):
     mentor = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='mentor_internships')
     position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True)  # Позиция для стажера
     start_date = models.DateField(default=timezone.now)
+    # Добавляем отзывы
+    intern_feedback = models.TextField(null=True, blank=True)  # Отзыв от стажера
+    mentor_feedback = models.TextField(null=True, blank=True)  # Отзыв от ментора
 
     def __str__(self):
         return f"{self.intern.username}'s Internship with {self.mentor.username if self.mentor else 'No Mentor'}"

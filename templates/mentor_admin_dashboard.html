@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load crispy_forms_tags %}
 {% block content %}
 <div class="container mt-4">
     <h2>Прогресс всех стажеров и менторов</h2>
@@ -15,62 +16,62 @@
                     <th>Статус</th>
                     <th>Дата завершения</th>
                     <th>Материалы в ожидании</th>
-                    <th>Действия</th>
+                    <th>Отзыв</th> <!-- Столбец для отзыва -->
                     <th>Отчет</th> <!-- Столбец для кнопки отчета -->
                 </tr>
             </thead>
             <tbody>
                 {% for internship in page_obj %}
-                    {% for stage in internship.intern.stage_progresses.all %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td><a href="{% url 'mentor_view_intern_materials' internship.intern.id %}">{{ internship.intern.full_name }}</a></td>
-                        <td>{{ internship.position.name }}</td>
-                        <td>
-                            {% if internship.mentor %}
-                                {{ internship.mentor.full_name }}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><a href="{% url 'mentor_view_intern_materials' internship.intern.id %}">{{ internship.intern.full_name }}</a></td>
+                    <td>{{ internship.position.name }}</td>
+                    <td>
+                        {% if internship.mentor %}
+                            {{ internship.mentor.full_name }}
+                        {% else %}
+                            Не назначен
+                        {% endif %}
+                    </td>
+                    <td>Этап {{ internship.intern.stage_progresses.all.last.stage }}</td>
+                    <td>
+                        {% if internship.is_completed %}
+                            Завершён
+                        {% elif internship.status == 'pending' %}
+                            Ожидание подтверждения
+                        {% else %}
+                            Не завершён
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if internship.is_completed %}
+                            {{ internship.intern.stage_progresses.all.last.completion_date|date:"d.m.Y" }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>{{ internship.pending_materials_count }}</td>
+
+                    <!-- Столбец с отзывом -->
+                    <td>
+                        {% if internship.is_internship_completed %}
+                            {% if internship.mentor_review_exists %}
+                                <span class="text-success">Отзыв оставлен</span>
                             {% else %}
-                                Не назначен
+                                <button class="btn btn-warning btn-sm show-review-form" data-internship-id="{{ internship.id }}">Оставить отзыв</button>
                             {% endif %}
-                        </td>
-                        <td>Этап {{ stage.stage }}</td>
-                        <td>
-                            {% if stage.completed %}
-                                Завершён
-                            {% elif stage.status == 'pending' %}
-                                Ожидание подтверждения
-                            {% else %}
-                                Не завершён
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if stage.completed %}
-                                {{ stage.completion_date|date:"d.m.Y" }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                        <td>{{ internship.pending_materials_count }}</td>
-                        <td>
-                            {% if stage.status == 'pending' and not stage.completed %}
-                                <form method="post" action="{% url 'confirm_stage_progress' stage.id %}">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-success btn-sm">Подтвердить завершение</button>
-                                </form>
-                            {% else %}
-                                {% if stage.completed %}
-                                    Завершён
-                                {% endif %}
-                            {% endif %}
-                        </td>
-                        <!-- Столбец с кнопкой для отчета -->
-                        <td>
-                            {% if stage.stage == internship.intern.stage_progresses.all.last.stage and internship.is_completed %}
-                                <a href="{% url 'intern_report' internship.intern.id %}" class="btn btn-info btn-sm">Отчет</a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+
+                    <!-- Столбец с кнопкой для отчета -->
+                    <td>
+                        {% if internship.is_internship_completed %}
+                            <a href="{% url 'intern_report' internship.intern.id %}" class="btn btn-info btn-sm">Отчет</a>
+                        {% endif %}
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -101,8 +102,40 @@
                 {% endif %}
             </ul>
         </nav>
+
+        <!-- Форма для добавления отзыва (по умолчанию скрыта) -->
+        {% for internship in page_obj %}
+        {% if internship.is_internship_completed and not internship.mentor_review_exists %}
+        <div id="review-form-{{ internship.id }}" class="review-form mt-4" style="display: none;">
+            <h4>Оставьте отзыв о стажере:</h4>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.mentor_feedback|as_crispy_field }}
+                <input type="hidden" name="internship_id" value="{{ internship.id }}">
+                <button type="submit" class="btn btn-primary">Отправить отзыв</button>
+            </form>
+        </div>
+        {% endif %}
+        {% endfor %}
     {% else %}
         <p>Нет данных для отображения.</p>
     {% endif %}
 </div>
+
+<!-- Скрипт для отображения формы отзыва при нажатии на кнопку -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const buttons = document.querySelectorAll('.show-review-form');
+        buttons.forEach(function(button) {
+            button.addEventListener('click', function () {
+                const internshipId = button.getAttribute('data-internship-id');
+                const form = document.getElementById(`review-form-${internshipId}`);
+                if (form) {
+                    form.style.display = 'block';  // Показываем форму
+                    button.style.display = 'none';  // Скрываем кнопку
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}

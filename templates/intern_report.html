@@ -21,7 +21,7 @@
             <thead>
                 <tr>
                     <th>Название теста</th>
-                    <th>Дата начала</th>
+{#                    <th>Дата начала</th>#}
                     <th>Дата завершения</th>
                     <th>Результат (%)</th>
                 </tr>
@@ -30,13 +30,40 @@
                 {% for result in test_results %}
                 <tr>
                     <td>{{ result.test.title }}</td>
-                    <td>{{ result.started_at|date:"d.m.Y H:i" }}</td>
+{#                    <td>{{ result.started_at|date:"d.m.Y H:i" }}</td>#}
                     <td>{{ result.completed_at|date:"d.m.Y H:i" }}</td>
                     <td>{{ result.score }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+
+    <h4>Отзывы</h4>
+    <div class="card mb-4">
+        <div class="card-header">
+            Отзыв от стажера
+        </div>
+        <div class="card-body">
+            {% if internship.intern_feedback %}
+                <p>{{ internship.intern_feedback }}</p>
+            {% else %}
+                <p>Отзыв от стажера отсутствует.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Отзыв от ментора
+        </div>
+        <div class="card-body">
+            {% if internship.mentor_feedback %}
+                <p>{{ internship.mentor_feedback }}</p>
+            {% else %}
+                <p>Отзыв от ментора отсутствует.</p>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Кнопка печати отчета с классом btn-print для скрытия при печати -->
