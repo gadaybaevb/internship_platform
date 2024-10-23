@@ -37,7 +37,6 @@ class QuestionForm(forms.ModelForm):
 AnswerFormSet = inlineformset_factory(Question, Answer, fields=('text', 'is_correct'), extra=4)
 
 
-
 class AnswerForm(forms.ModelForm):
     class Meta:
         model = Answer
@@ -47,4 +46,7 @@ class AnswerForm(forms.ModelForm):
             'is_correct': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sequence_order': forms.NumberInput(attrs={'class': 'form-control'}),
             'match_pair': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'text': 'Ответ'
         }

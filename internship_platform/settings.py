@@ -141,3 +141,13 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 AUTH_USER_MODEL = 'users.CustomUser'
 LOGIN_REDIRECT_URL = 'home'  # Перенаправление после успешного входа
 LOGOUT_REDIRECT_URL = 'login'  # Перенаправление после выхода
+
+
+# Время жизни сессии - 1 день
+SESSION_COOKIE_AGE = 86400  # 24 часа
+
+# Сессия не должна удаляться при закрытии браузера
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# Продление сессии при каждом запросе
+SESSION_SAVE_EVERY_REQUEST = True

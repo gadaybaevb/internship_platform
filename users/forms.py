@@ -7,6 +7,15 @@ class CustomUserCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = CustomUser
         fields = ['username', 'email', 'full_name', 'department', 'role', 'password1', 'password2']  # Добавляем full_name
+        labels = {
+            'username': 'Имя пользователя',
+            'email': "Почта",
+            'full_name': "ФИО",
+            'department': "Отдел",
+            'role': "Роль",
+            'password1': "Пароль",
+            'password2': "Повторить пароль"
+        }
 
 
 class CustomUserEditForm(forms.ModelForm):

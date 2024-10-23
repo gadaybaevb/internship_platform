@@ -6,12 +6,12 @@ from django.apps import apps
 
 
 class Test(models.Model):
-    title = models.CharField(max_length=200)
-    stage_number = models.IntegerField()  # Этап стажировки
-    position = models.ForeignKey(Position, on_delete=models.CASCADE)  # Привязка к позиции
-    required_questions = models.IntegerField(default=5)  # Сколько вопросов должно быть в тесте
-    passing_score = models.DecimalField(max_digits=5, decimal_places=2)  # Проходной балл
-    time_limit = models.IntegerField(default=30)  # Время на тест в минутах
+    title = models.CharField(max_length=200, verbose_name='Заголовок')
+    stage_number = models.IntegerField(verbose_name='Этап стажировки')  # Этап стажировки
+    position = models.ForeignKey(Position, on_delete=models.CASCADE, verbose_name='Должность')  # Привязка к позиции
+    required_questions = models.IntegerField(default=5, verbose_name='Количество вопросов в тесте')  # Сколько вопросов должно быть в тесте
+    passing_score = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='Проходной балл')  # Проходной балл
+    time_limit = models.IntegerField(default=30, verbose_name='Лимит времени для теста')  # Время на тест в минутах
 
     def __str__(self):
         return self.title
@@ -19,8 +19,6 @@ class Test(models.Model):
     def questions_count(self):
         """Возвращает количество вопросов, связанных с этим тестом"""
         return self.questions.count()  # Связь через related_name='questions' в модели Question
-
-
 
 
 class Question(models.Model):
@@ -33,8 +31,8 @@ class Question(models.Model):
     )
 
     test = models.ForeignKey(Test, related_name='questions', on_delete=models.CASCADE)
-    text = models.TextField()  # Текст вопроса
-    question_type = models.CharField(max_length=20, choices=QUESTION_TYPES)
+    text = models.TextField(verbose_name='Текст вопроса')  # Текст вопроса
+    question_type = models.CharField(max_length=20, choices=QUESTION_TYPES, verbose_name='Тип вопроса')
 
     def __str__(self):
         return f"{self.text} ({self.get_question_type_display()})"
@@ -42,8 +40,8 @@ class Question(models.Model):
 
 class Answer(models.Model):
     question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE)
-    text = models.CharField(max_length=200)  # Вариант ответа
-    is_correct = models.BooleanField(default=False)  # Верный или неверный ответ
+    text = models.CharField(max_length=200,  verbose_name='Ответ')  # Вариант ответа
+    is_correct = models.BooleanField(default=False, verbose_name='Правильный?')  # Верный или неверный ответ
     sequence_order = models.IntegerField(null=True, blank=True)  # Порядок для последовательности (если нужно)
     match_pair = models.CharField(max_length=200, null=True, blank=True)  # Пара для соответствия (если нужно)
 
@@ -52,12 +50,12 @@ class Answer(models.Model):
 
 
 class TestResult(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    test = models.ForeignKey(Test, on_delete=models.CASCADE)
-    score = models.FloatField()
-    completed_at = models.DateTimeField(auto_now_add=True)
-    correct_answers_count = models.IntegerField(default=0)  # Количество правильных ответов
-    total_questions_count = models.IntegerField(default=0)  # Общее количество вопросов
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, verbose_name='Пользователь')
+    test = models.ForeignKey(Test, on_delete=models.CASCADE, verbose_name='Тест')
+    score = models.FloatField(verbose_name='Балл')
+    completed_at = models.DateTimeField(auto_now_add=True, verbose_name='Тест завершен')
+    correct_answers_count = models.IntegerField(default=0, verbose_name='Количество правильных ответов')  # Количество правильных ответов
+    total_questions_count = models.IntegerField(default=0, verbose_name='Количество всего вопросов')  # Общее количество вопросов
 
     def __str__(self):
         return f"{self.user.username} - {self.test.title} - {self.score}"

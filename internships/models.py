@@ -7,24 +7,24 @@ from datetime import timedelta
 
 
 class Material(models.Model):
-    title = models.CharField(max_length=255)  # Название материала
-    description = models.TextField()  # Описание материала
-    file = models.FileField(upload_to='materials/', null=True, blank=True)  # Файл (PDF, видео и т.д.)
-    position = models.ForeignKey(Position, on_delete=models.CASCADE)  # Связь с позицией
-    stage = models.IntegerField()  # Номер этапа
+    title = models.CharField(max_length=255, verbose_name='Название материала')  # Название материала
+    description = models.TextField(verbose_name='Описание материала')  # Описание материала
+    file = models.FileField(upload_to='materials/', null=True, blank=True, verbose_name='Файл')  # Файл (PDF, видео и т.д.)
+    position = models.ForeignKey(Position, on_delete=models.CASCADE, verbose_name='Позиция')  # Связь с позицией
+    stage = models.IntegerField(verbose_name='Этап')  # Номер этапа
 
     def __str__(self):
         return f'{self.title} (Этап {self.stage} для {self.position.name})'
 
 
 class Internship(models.Model):
-    intern = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='intern_internships')
-    mentor = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='mentor_internships')
-    position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True)  # Позиция для стажера
-    start_date = models.DateField(default=timezone.now)
+    intern = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='intern_internships', verbose_name='Ментор')
+    mentor = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='mentor_internships', verbose_name='Стажер')
+    position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True, verbose_name='Должность')  # Позиция для стажера
+    start_date = models.DateField(default=timezone.now, verbose_name='Дата начала')
     # Добавляем отзывы
-    intern_feedback = models.TextField(null=True, blank=True)  # Отзыв от стажера
-    mentor_feedback = models.TextField(null=True, blank=True)  # Отзыв от ментора
+    intern_feedback = models.TextField(null=True, blank=True, verbose_name='Отзыв от стажера')  # Отзыв от стажера
+    mentor_feedback = models.TextField(null=True, blank=True, verbose_name='Отзыв от ментора')  # Отзыв от ментора
 
     def __str__(self):
         return f"{self.intern.username}'s Internship with {self.mentor.username if self.mentor else 'No Mentor'}"
@@ -65,11 +65,11 @@ class Internship(models.Model):
 
 
 class StageProgress(models.Model):
-    intern = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='stage_progresses')
-    position = models.ForeignKey(Position, on_delete=models.CASCADE)
-    stage = models.IntegerField(default=1)  # Номер этапа
-    completed = models.BooleanField(default=False)  # Завершён ли этап
-    completion_date = models.DateTimeField(null=True, blank=True)  # Дата завершения этапа
+    intern = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='stage_progresses', verbose_name='Стажер')
+    position = models.ForeignKey(Position, on_delete=models.CASCADE, verbose_name='Должность')
+    stage = models.IntegerField(default=1, verbose_name='Этапы')  # Номер этапа
+    completed = models.BooleanField(default=False, verbose_name='Завершение этапа')  # Завершён ли этап
+    completion_date = models.DateTimeField(null=True, blank=True, verbose_name='Дата завершение этапа')  # Дата завершения этапа
 
     def __str__(self):
         return f"{self.intern.full_name} - Этап {self.stage} ({'Завершён' if self.completed else 'Не завершён'})"
@@ -81,13 +81,13 @@ class MaterialProgress(models.Model):
         ('pending', 'Ожидание'),
         ('completed', 'Завершен'),
     )
-    intern = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    material = models.ForeignKey(Material, on_delete=models.CASCADE)
-    completed = models.BooleanField(default=False)
-    mentor_confirmed = models.BooleanField(default=False)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='not_started')
+    intern = models.ForeignKey(CustomUser, on_delete=models.CASCADE, verbose_name='Стажер')
+    material = models.ForeignKey(Material, on_delete=models.CASCADE, verbose_name='Материал')
+    completed = models.BooleanField(default=False, verbose_name='Закончил')
+    mentor_confirmed = models.BooleanField(default=False, verbose_name='Подтверждение ментора')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='not_started', verbose_name='Статус')
 
     # Дата завершения и подтверждения можно хранить как дополнительные поля
-    completion_date = models.DateTimeField(null=True, blank=True)
-    confirmation_date = models.DateTimeField(null=True, blank=True)
+    completion_date = models.DateTimeField(null=True, blank=True, verbose_name='Дата окончания')
+    confirmation_date = models.DateTimeField(null=True, blank=True, verbose_name='Дата подтверждения')
 

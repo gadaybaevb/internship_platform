@@ -14,6 +14,7 @@ from notifications.models import Notification
 from tests.models import Test, TestResult
 from django.utils.dateparse import parse_date
 from django.db.models import Avg, F
+from django.contrib.messages import get_messages
 
 
 User = get_user_model()
@@ -92,6 +93,13 @@ def material_create(request):
                 return redirect('material_list')
     else:
         form = MaterialForm()
+
+    # Получаем только сообщения, которые относятся к этому представлению
+    storage = get_messages(request)
+    relevant_messages = []
+    for message in storage:
+        if message.level == messages.ERROR or message.level == messages.SUCCESS:
+            relevant_messages.append(message)
 
     return render(request, 'material_form.html', {'form': form})
 

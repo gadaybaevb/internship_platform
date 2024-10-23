@@ -10,15 +10,16 @@ from django.urls import reverse_lazy
 from internships.models import Internship, MaterialProgress, StageProgress
 from django.utils.timezone import now
 from datetime import timedelta, date
-
-
-
 from django.utils.timezone import now
 from datetime import timedelta, date
+
 
 def home(request):
     user = request.user
     context = {}
+
+    if not user.is_authenticated:
+        return redirect('login')
 
     if user.role == 'admin':
         # Администраторский контент
@@ -73,8 +74,8 @@ def home(request):
                 'internship': internship,
             })
 
-    return render(request, 'home.html', context)
 
+    return render(request, 'home.html', context)
 
 
 def register(request):

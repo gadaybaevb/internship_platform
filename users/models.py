@@ -24,10 +24,10 @@ class CustomUser(AbstractUser):
         ('intern', 'Intern'),
     )
 
-    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
-    position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True, blank=True)
-    role = models.CharField(max_length=10, choices=ROLES, default='intern')  # Добавляем поле role
-    full_name = models.CharField(max_length=255)  # Добавляем поле ФИО
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Отдел")
+    position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Должность')
+    role = models.CharField(max_length=10, choices=ROLES, default='intern', verbose_name="Роль")  # Добавляем поле role
+    full_name = models.CharField(max_length=255, verbose_name='ФИО')  # Добавляем поле ФИО
 
     def __str__(self):
         return f'{self.username} ({self.position.name if self.position else "No position"})'

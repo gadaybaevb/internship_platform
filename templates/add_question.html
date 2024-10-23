@@ -6,11 +6,11 @@
     <form method="post">
         {% csrf_token %}
         <div class="form-group">
-            {{ question_form.text.label_tag }}:
+{#            {{ question_form.text.label_tag }}:#}
             {{ question_form.text|as_crispy_field }}
         </div>
         <div class="form-group">
-            {{ question_form.question_type.label_tag }}:
+{#            {{ question_form.question_type.label_tag }}:#}
             {{ question_form.question_type|as_crispy_field }}
         </div>
 
@@ -20,11 +20,11 @@
             {% for form in formset %}
             <div class="form-row answer-row">
                 <div class="col">
-                    {{ form.text.label_tag }}:
+{#                    {{ form.text.label_tag }}:#}
                     {{ form.text|as_crispy_field }}
                 </div>
                 <div class="col">
-                    {{ form.is_correct.label_tag }}:
+{#                    {{ form.is_correct.label_tag }}:#}
                     {{ form.is_correct|as_crispy_field }}
                 </div>
             </div>
