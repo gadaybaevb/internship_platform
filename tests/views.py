@@ -8,8 +8,11 @@ from django.utils import timezone
 import random
 from notifications.models import Notification
 from decimal import Decimal, ROUND_HALF_UP
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 
 
+@login_required
 def take_test(request, test_id):
     test = get_object_or_404(Test, id=test_id)
     questions = test.questions.all()
@@ -114,6 +117,7 @@ def take_test(request, test_id):
     })
 
 
+@staff_member_required
 def create_test(request):
     if request.method == 'POST':
         form = TestForm(request.POST)
@@ -125,6 +129,7 @@ def create_test(request):
     return render(request, 'create_test.html', {'form': form})
 
 
+@login_required
 def add_question(request, test_id):
     test = get_object_or_404(Test, id=test_id)
 
@@ -153,7 +158,7 @@ def add_question(request, test_id):
     return render(request, 'add_question.html', {'question_form': question_form, 'formset': formset, 'test': test})
 
 
-
+@login_required
 def tests_list(request):
     search_query = request.GET.get('search', '')
     tests = Test.objects.all()
@@ -172,6 +177,7 @@ def tests_list(request):
     return render(request, 'tests_list.html', {'page_obj': page_obj, 'search_query': search_query})
 
 
+@staff_member_required
 def edit_test(request, test_id):
     test = get_object_or_404(Test, id=test_id)
 
@@ -186,6 +192,7 @@ def edit_test(request, test_id):
     return render(request, 'edit_test.html', {'form': form, 'test': test})
 
 
+@staff_member_required
 def delete_test(request, test_id):
     test = get_object_or_404(Test, id=test_id)
 
@@ -196,6 +203,7 @@ def delete_test(request, test_id):
     return render(request, 'delete_test_confirm.html', {'test': test})
 
 
+@login_required
 def questions_list(request, test_id):
     search_query = request.GET.get('search', '')
     test = get_object_or_404(Test, id=test_id)
@@ -211,6 +219,7 @@ def questions_list(request, test_id):
     return render(request, 'questions_list.html', {'page_obj': page_obj, 'search_query': search_query, 'test': test})
 
 
+@login_required
 def edit_question(request, question_id):
     question = get_object_or_404(Question, id=question_id)
 
@@ -225,6 +234,7 @@ def edit_question(request, question_id):
     return render(request, 'edit_question.html', {'form': form, 'question': question})
 
 
+@login_required
 def delete_question(request, question_id):
     question = get_object_or_404(Question, id=question_id)
 
@@ -235,6 +245,7 @@ def delete_question(request, question_id):
     return render(request, 'delete_question_confirm.html', {'question': question})
 
 
+@login_required
 def evaluate_test(test, user_answers, request):
     total_score = 0.0
     max_score = 0.0
@@ -302,6 +313,7 @@ def evaluate_test(test, user_answers, request):
     return percentage_score
 
 
+@login_required
 def evaluate_single(question, user_answer):
     """Оценка вопроса с одним верным ответом"""
     correct_answer = question.answers.filter(is_correct=True).first()
@@ -324,6 +336,7 @@ def evaluate_single(question, user_answer):
     return 0.0  # Неверный ответ
 
 
+@login_required
 def evaluate_multiple(question, user_answers):
     """Оценка вопроса с несколькими верными ответами"""
     correct_answers = question.answers.filter(is_correct=True).values_list('id', flat=True)
@@ -346,6 +359,7 @@ def evaluate_multiple(question, user_answers):
     return 0.0  # Неверные ответы
 
 
+@login_required
 def evaluate_true_false(question, user_answer):
     """Оценка вопроса типа верно/неверно"""
     correct_answer = question.answers.filter(is_correct=True).first()
@@ -371,6 +385,7 @@ def evaluate_true_false(question, user_answer):
     return 0.0  # Неверный ответ
 
 
+@login_required
 def evaluate_sequence(question, user_answers):
     """Оценка последовательности"""
     correct_order = list(question.answers.order_by('sequence_order').values_list('id', flat=True))
@@ -388,6 +403,7 @@ def evaluate_sequence(question, user_answers):
     return 0.0
 
 
+@login_required
 def evaluate_match(question, user_answers):
     """Оценка соответствия"""
     correct_matches = {str(answer.id): answer.match_pair for answer in question.answers.all()}
@@ -405,6 +421,7 @@ def evaluate_match(question, user_answers):
     return 0.0
 
 
+@login_required
 def test_results(request, test_id):
     test = get_object_or_404(Test, id=test_id)
     user = request.user
@@ -430,6 +447,7 @@ def test_results(request, test_id):
     return render(request, 'test_results.html', {'test_result': test_result, 'test_score': test_score, 'passing_score': passing_score})
 
 
+@login_required
 def test_instructions(request, test_id):
     test = get_object_or_404(Test, id=test_id)
 
@@ -447,6 +465,7 @@ def test_instructions(request, test_id):
     return render(request, 'test_instructions.html', {'test': test})
 
 
+@login_required
 def notify_user(user, message):
     """Функция для создания уведомления"""
     Notification.objects.create(user=user, message=message)

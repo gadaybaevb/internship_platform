@@ -15,11 +15,13 @@ from tests.models import Test, TestResult
 from django.utils.dateparse import parse_date
 from django.db.models import Avg, F
 from django.contrib.messages import get_messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 
 
 User = get_user_model()
 
-
+@login_required
 def material_list(request):
     search_query = request.GET.get('search', '')
     department_filter = request.GET.get('department', '')
@@ -74,6 +76,7 @@ def material_list(request):
     return render(request, 'material_list.html', context)
 
 
+@login_required
 def material_create(request):
     if request.method == 'POST':
         form = MaterialForm(request.POST, request.FILES)
@@ -104,6 +107,7 @@ def material_create(request):
     return render(request, 'material_form.html', {'form': form})
 
 
+@login_required
 def material_edit(request, material_id):
     material = get_object_or_404(Material, id=material_id)
 
@@ -118,6 +122,7 @@ def material_edit(request, material_id):
     return render(request, 'material_form.html', {'form': form, 'material': material})
 
 
+@login_required
 def material_delete(request, material_id):
     material = get_object_or_404(Material, id=material_id)
 
@@ -128,6 +133,7 @@ def material_delete(request, material_id):
     return render(request, 'material_confirm_delete.html', {'material': material})
 
 
+@staff_member_required
 def assign_mentor(request, internship_id):
     internship = get_object_or_404(Internship, id=internship_id)
 
@@ -168,6 +174,7 @@ def assign_mentor(request, internship_id):
     return render(request, 'assign_mentor.html', context)
 
 
+@login_required
 def internship_list(request):
     search_query = request.GET.get('search', '')  # Получаем запрос поиска
     internships = Internship.objects.all()
@@ -184,6 +191,7 @@ def internship_list(request):
     return render(request, 'internship_list.html', {'page_obj': page_obj, 'search_query': search_query})
 
 
+@login_required
 def dashboard(request):
     user = request.user
     check_deadlines(user)  # Проверяем дедлайны
@@ -244,6 +252,7 @@ def dashboard(request):
     })
 
 
+@login_required
 def update_stage_progress(request, stage_id):
     stage = get_object_or_404(StageProgress, id=stage_id)
 
@@ -263,6 +272,7 @@ def update_stage_progress(request, stage_id):
     return redirect('dashboard')
 
 
+@login_required
 def intern_materials(request):
     intern = request.user
     internship = Internship.objects.filter(intern=intern).first()
@@ -347,6 +357,7 @@ def intern_materials(request):
     })
 
 
+@login_required
 def check_deadlines(user):
     # Получаем все активные этапы стажировки для стажера
     stages_in_progress = StageProgress.objects.filter(intern=user, completed=False)
@@ -374,6 +385,7 @@ def check_deadlines(user):
             Notification.objects.create(user=stage.intern, message=message)
 
 
+@login_required
 def mark_material_completed(request, material_id):
     material = get_object_or_404(Material, id=material_id)
     intern = request.user
@@ -404,6 +416,7 @@ def mark_material_completed(request, material_id):
     return redirect('intern_materials')
 
 
+@login_required
 def check_stage_completion(intern, stage):
     """Проверка, завершены ли все материалы на этапе"""
     materials_on_stage = Material.objects.filter(position=intern.position, stage=stage)
@@ -425,6 +438,7 @@ def check_stage_completion(intern, stage):
             Notification.objects.create(user=admin, message=admin_message)
 
 
+@login_required
 def mentor_view_intern_materials(request, intern_id):
     intern = get_object_or_404(CustomUser, id=intern_id)
 
@@ -454,6 +468,7 @@ def mentor_view_intern_materials(request, intern_id):
     })
 
 
+@login_required
 def confirm_material_completion(request, progress_id):
     # Получаем запись о прогрессе по материалу
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
@@ -471,6 +486,7 @@ def confirm_material_completion(request, progress_id):
     return redirect('mentor_view_intern_materials', intern_id=material_progress.intern.id)
 
 
+@login_required
 def intern_report(request, intern_id):
     intern = get_object_or_404(CustomUser, id=intern_id)
     internship = get_object_or_404(Internship, intern=intern)
@@ -506,11 +522,12 @@ def intern_report(request, intern_id):
     })
 
 
-
+@staff_member_required
 def reports_view(request):
     return render(request, 'reports.html')
 
 
+@staff_member_required
 def test_reports_view(request):
     # Получаем параметры фильтрации
     search_query = request.GET.get('search', '')
@@ -548,6 +565,7 @@ def test_reports_view(request):
     })
 
 
+@staff_member_required
 def completed_internships_report(request):
     # Получаем параметры фильтрации
     search_query = request.GET.get('search', '')
@@ -599,6 +617,7 @@ def completed_internships_report(request):
     })
 
 
+@staff_member_required
 def mentor_report(request):
     department_query = request.GET.get('department', '')
     start_date = request.GET.get('start_date', '')
@@ -657,6 +676,7 @@ def mentor_report(request):
     })
 
 
+@staff_member_required
 def department_materials_report(request):
     # Фильтрация по департаменту
     department_query = request.GET.get('department', '')

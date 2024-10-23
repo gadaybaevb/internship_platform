@@ -12,8 +12,11 @@ from django.utils.timezone import now
 from datetime import timedelta, date
 from django.utils.timezone import now
 from datetime import timedelta, date
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 
 
+@login_required
 def home(request):
     user = request.user
     context = {}
@@ -78,6 +81,7 @@ def home(request):
     return render(request, 'home.html', context)
 
 
+@staff_member_required
 def register(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
@@ -90,6 +94,7 @@ def register(request):
     return render(request, 'register.html', {'form': form})
 
 
+@staff_member_required
 def user_list(request):
     users = CustomUser.objects.all().order_by('id')
     paginator = Paginator(users, 50)  # Пагинация по 50 записей
@@ -99,6 +104,7 @@ def user_list(request):
     return render(request, 'user_list.html', {'page_obj': page_obj})
 
 
+@staff_member_required
 def user_edit(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
 
@@ -118,6 +124,7 @@ def user_edit(request, user_id):
     return render(request, 'user_edit.html', {'form': form, 'password_form': password_form, 'user': user})
 
 
+@staff_member_required
 def user_delete(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
 

@@ -2,8 +2,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from .models import Department, Position
 from .forms import DepartmentForm, PositionForm
 from django.core.paginator import Paginator
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 
 
+@login_required
 def department_list(request):
     departments = Department.objects.all()
     paginator = Paginator(departments, 50)  # Пагинация по 50 записей
@@ -13,6 +16,7 @@ def department_list(request):
     return render(request, 'department_list.html', {'page_obj': page_obj})
 
 
+@staff_member_required
 def department_create(request):
     if request.method == 'POST':
         form = DepartmentForm(request.POST)
@@ -24,6 +28,7 @@ def department_create(request):
     return render(request, 'department_form.html', {'form': form})
 
 
+@staff_member_required
 def department_edit(request, department_id):
     department = get_object_or_404(Department, id=department_id)
 
@@ -38,6 +43,7 @@ def department_edit(request, department_id):
     return render(request, 'department_form.html', {'form': form, 'department': department})
 
 
+@staff_member_required
 def department_delete(request, department_id):
     department = get_object_or_404(Department, id=department_id)
 
@@ -48,6 +54,7 @@ def department_delete(request, department_id):
     return render(request, 'department_confirm_delete.html', {'department': department})
 
 
+@staff_member_required
 def position_create(request):
     if request.method == 'POST':
         form = PositionForm(request.POST)
@@ -60,6 +67,7 @@ def position_create(request):
     return render(request, 'position_form.html', {'form': form, 'position': None})
 
 
+@login_required
 def position_list(request):
     positions = Position.objects.all()
     paginator = Paginator(positions, 50)  # Пагинация по 50 записей
@@ -69,6 +77,7 @@ def position_list(request):
     return render(request, 'position_list.html', {'page_obj': page_obj})
 
 
+@staff_member_required
 def position_edit(request, position_id):
     position = get_object_or_404(Position, id=position_id)
 
@@ -83,6 +92,7 @@ def position_edit(request, position_id):
     return render(request, 'position_form.html', {'form': form, 'position': position})
 
 
+@staff_member_required
 def position_delete(request, position_id):
     position = get_object_or_404(Position, id=position_id)
 
