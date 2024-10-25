@@ -17,7 +17,7 @@
 .burger-menu {
     font-size: 30px;
     cursor: pointer;
-    display: none; /* По умолчанию скрываем бургер-меню */
+    display: none;
 }
 
 /* Side Menu */
@@ -47,7 +47,7 @@
     color: #fff;
     display: block;
     transition: 0.3s;
-    position: relative; /* Для добавления анимации underline */
+    position: relative;
 }
 
 .side-menu a:hover, .side-menu button:hover {
@@ -118,19 +118,16 @@
     width: 100%;
 }
 
-/* Показываем бургер-меню только на малых экранах */
 @media (max-width: 1026px) {
     .burger-menu {
         display: block;
     }
 
-    /* Скрываем обычное меню */
     .navbar ul.nav {
         display: none;
     }
 }
 
-/* Для экранов более 1026px, скрываем бургер-меню */
 @media (min-width: 1026px) {
     .burger-menu {
         display: none;
@@ -147,13 +144,70 @@
 
 @media print {
     form, .pagination, .btn-primary,
-    /* Скрываем бургер-меню при печати */
     .burger-menu, .btn-print {
         display: none;
     }
 
-    /* Убедимся, что логотип виден при печати */
     .logo {
         display: none;
     }
+}
+
+/* Стили для карточек */
+.sequence-item, .match-item {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 2px solid #007bff;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s; /* Плавные переходы для анимаций */
+    cursor: grab;
+}
+
+/* Эффекты при наведении */
+.sequence-item:hover, .match-item:hover {
+    background-color: #e6e6e6;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Легкая тень при наведении */
+}
+
+/* Эффекты при перетаскивании */
+.sequence-item:active, .match-item:active {
+    background-color: #dcdcdc;
+    transform: scale(1.05); /* Увеличение карточки при перетаскивании */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Тень во время перетаскивания */
+}
+
+/* Стили для выбранной карточки */
+.sortable-chosen {
+    border: 2px dashed #007bff;
+    background-color: #f0f8ff;
+}
+
+/* Призрачная карточка во время перетаскивания */
+.sortable-ghost {
+    opacity: 0.6;
+}
+
+/* Карточка во время перетаскивания */
+.sortable-drag {
+    background-color: #f1f1f1;
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Специфичные стили для избежания конфликтов с Bootstrap */
+ul#match-list-left .list-group-item,
+ul#match-list-right .list-group-item,
+ul#sequence-list .list-group-item {
+    border: 2px solid #007bff;
+    background-color: #f9f9f9;
+    transition: background-color 0.3s, transform 0.3s;
+}
+
+ul#match-list-left .list-group-item:hover,
+ul#match-list-right .list-group-item:hover,
+ul#sequence-list .list-group-item:hover {
+    background-color: #e0f7fa;
+    cursor: grab;
 }

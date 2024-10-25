@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.forms import modelformset_factory
 from django.utils import timezone
 import random
+import json
 from notifications.models import Notification
 from decimal import Decimal, ROUND_HALF_UP
 from django.contrib.admin.views.decorators import staff_member_required
@@ -17,90 +18,81 @@ def take_test(request, test_id):
     test = get_object_or_404(Test, id=test_id)
     questions = test.questions.all()
 
-    # Проверка, с какой страницы был перенаправлен пользователь
     referer_url = request.META.get('HTTP_REFERER', '')
-    print(f"Пользователь был перенаправлен с: {referer_url}")
-
-    # Если пользователь пришёл со страницы "start", сбросим сессию и начнём тест с начала
     if 'intro' in referer_url:
-        print("Пользователь пришёл со страницы start, сбрасываем сессию.")
         request.session.pop('test_start_time', None)
         request.session.pop('current_question_number', None)
         request.session.pop('user_answers', None)
         request.session.pop('time_left', None)
 
-    # Проверяем, есть ли уже результаты для данного теста
     test_result = TestResult.objects.filter(user=request.user, test=test).first()
-
-    # Логируем содержимое сессии перед началом теста
-    print("Содержимое сессии:", request.session.items())
-
-    # Если тест завершен, перенаправляем на результаты
     if test_result and test_result.completed_at:
         messages.info(request, 'Вы уже завершили этот тест.')
         return redirect('test_results', test_id=test.id)
 
-    # Если тест только начался, сохраняем начальное время
     if 'test_start_time' not in request.session:
         request.session['test_start_time'] = timezone.now().isoformat()
-        time_left = test.time_limit * 60  # Время на тест в секундах
+        time_left = test.time_limit * 60
     else:
-        # Получаем стартовое время из сессии и вычисляем, сколько времени осталось
         test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
         time_spent = timezone.now() - test_start_time
         time_left = request.session.get('time_left', test.time_limit * 60) - time_spent.total_seconds()
-
-        # Если время истекло, завершаем тест
         if time_left <= 0:
             messages.error(request, "Время для теста истекло.")
             return redirect('test_results', test_id=test.id)
 
-    # Сохраняем оставшееся время в сессии для дальнейших запросов
     request.session['time_left'] = time_left
-
     current_question_number = request.session.get('current_question_number', 1)
     current_question = questions[current_question_number - 1]
 
-    # Перемешиваем варианты ответов
     answers = list(current_question.answers.all())
     random.shuffle(answers)
     current_question.answers_shuffled = answers
 
+    if current_question.question_type == 'match':
+        initial_pairs = {
+            "left": [(str(answer.id), answer.text) for answer in answers],
+            "right": [(str(answer.match_pair), answer.text) for answer in answers]
+        }
+        random.shuffle(initial_pairs["left"])
+        random.shuffle(initial_pairs["right"])
+
+        current_question.initial_pairs = initial_pairs
+    else:
+        initial_pairs = None
+
     if request.method == 'POST':
         user_answers = request.session.get('user_answers', {})
-
-        # Сохранение ответов пользователя
         if current_question.question_type == 'multiple':
             user_answer = request.POST.getlist(f'question_{current_question.id}_answers')
         elif current_question.question_type == 'sequence':
-            user_answer = {
-                answer.id: request.POST.get(f'question_{current_question.id}_order_{answer.id}')
-                for answer in current_question.answers.all()
-            }
+            user_answer = request.POST.get(f'question_{current_question.id}_sequence')
+            user_answers[str(current_question.id)] = user_answer
         elif current_question.question_type == 'match':
-            user_answer = {
-                answer.id: request.POST.get(f'question_{current_question.id}_match_{answer.id}')
-                for answer in current_question.answers.all()
-            }
+            user_answer = request.POST.get(f"question_{current_question.id}_matches")
+            if not user_answer:
+                user_answer = initial_pairs
+            else:
+                try:
+                    user_answer = json.loads(user_answer)
+                except json.JSONDecodeError:
+                    user_answer = {}
+            user_answers[f"{current_question.id}_matches"] = json.dumps(user_answer)
         else:
             user_answer = request.POST.get(f'question_{current_question.id}')
+            user_answers[str(current_question.id)] = user_answer
 
-        user_answers[str(current_question.id)] = user_answer
         request.session['user_answers'] = user_answers
-
-        # Переход к следующему вопросу
         if current_question_number < len(questions):
             request.session['current_question_number'] = current_question_number + 1
             return redirect('take_test', test_id=test.id)
 
-        # Оценка теста и сохранение результатов
         score = evaluate_test(test, user_answers, request)
         if score >= test.passing_score:
             messages.success(request, f"Тест пройден. Ваш результат: {score}%")
         else:
             messages.error(request, f"Тест не пройден. Ваш результат: {score}%")
 
-        # Сброс данных сессии
         del request.session['user_answers']
         del request.session['current_question_number']
         del request.session['test_start_time']
@@ -114,6 +106,7 @@ def take_test(request, test_id):
         'current_question_number': current_question_number,
         'is_last_question': current_question_number == len(questions),
         'time_left': int(time_left),
+        'initial_pairs': initial_pairs
     })
 
 
@@ -146,6 +139,17 @@ def add_question(request, test_id):
             if question.question_type == 'true_false':
                 Answer.objects.create(question=question, text="Верно", is_correct=True)
                 Answer.objects.create(question=question, text="Неверно", is_correct=False)
+
+            elif question.question_type == 'match':
+                # Для 'match' обрабатываем пары (вопрос -> соответствие)
+                for form in formset:
+                    if form.cleaned_data.get('text') and form.cleaned_data.get('match_pair'):
+                        # Добавляем пару вопрос-ответ
+                        Answer.objects.create(
+                            question=question,
+                            text=form.cleaned_data['text'],  # Вопрос
+                            match_pair=form.cleaned_data['match_pair']  # Соответствие
+                        )
             else:
                 formset.instance = question
                 formset.save()
@@ -245,14 +249,13 @@ def delete_question(request, question_id):
     return render(request, 'delete_question_confirm.html', {'question': question})
 
 
-@login_required
 def evaluate_test(test, user_answers, request):
     total_score = 0.0
     max_score = 0.0
     correct_answers_count = 0
 
     for question in test.questions.all():
-        question_id_str = str(question.id)
+        question_id_str = str(question.id)  # Преобразуем ID вопроса в строку для получения данных из user_answers
 
         if question.question_type == 'single':
             user_answer = user_answers.get(question_id_str)
@@ -279,7 +282,7 @@ def evaluate_test(test, user_answers, request):
                 correct_answers_count += 1
 
         elif question.question_type == 'sequence':
-            user_answer = user_answers  # Обрабатываем ответы для последовательности
+            user_answer = user_answers.get(question_id_str)
             score = evaluate_sequence(question, user_answer)
             total_score += score
             max_score += 1
@@ -287,8 +290,9 @@ def evaluate_test(test, user_answers, request):
                 correct_answers_count += 1
 
         elif question.question_type == 'match':
-            user_answer = user_answers  # Обрабатываем ответы для соответствий
+            user_answer = user_answers.get(f"{question_id_str}_matches")
             score = evaluate_match(question, user_answer)
+            correct_matches = {str(a.id): a.match_pair for a in question.answers.all()}
             total_score += score
             max_score += 1
             if score == 1.0:
@@ -313,18 +317,12 @@ def evaluate_test(test, user_answers, request):
     return percentage_score
 
 
-@login_required
 def evaluate_single(question, user_answer):
     """Оценка вопроса с одним верным ответом"""
     correct_answer = question.answers.filter(is_correct=True).first()
-    print(correct_answer)
-    print(user_answer)
     # Проверяем, что пользователь выбрал ответ
     if user_answer is None:
-        print(f"Ответ на вопрос {question.id} не выбран")
         return 0.0  # Если ответа нет, возвращаем 0 баллов
-
-    print(f"Правильный ответ: {correct_answer.text}, Ответ пользователя: {user_answer}")
 
     try:
         if correct_answer and correct_answer.id == int(user_answer):
@@ -336,18 +334,15 @@ def evaluate_single(question, user_answer):
     return 0.0  # Неверный ответ
 
 
-@login_required
 def evaluate_multiple(question, user_answers):
     """Оценка вопроса с несколькими верными ответами"""
     correct_answers = question.answers.filter(is_correct=True).values_list('id', flat=True)
 
     if not user_answers:
-        print(f"Ответы на вопрос {question.id} не выбраны")
         return 0.0  # Если ответов нет, возвращаем 0 баллов
 
     try:
         selected_answers = [int(ans) for ans in user_answers]
-        print(f"Правильные ответы: {correct_answers}, Ответы пользователя: {selected_answers}")
     except (ValueError, TypeError):
         print("Ошибка преобразования ответов в числа")
         return 0.0  # Некорректный формат ответа
@@ -359,7 +354,6 @@ def evaluate_multiple(question, user_answers):
     return 0.0  # Неверные ответы
 
 
-@login_required
 def evaluate_true_false(question, user_answer):
     """Оценка вопроса типа верно/неверно"""
     correct_answer = question.answers.filter(is_correct=True).first()
@@ -373,7 +367,6 @@ def evaluate_true_false(question, user_answer):
         print(f"Ответ на вопрос {question.id} не выбран")
         return 0.0  # Если ответ не выбран, возвращаем 0 баллов
 
-    print(f"Правильный ответ: {correct_answer.text}, Ответ пользователя: {user_answer}")
 
     try:
         if correct_answer.text == user_answer:
@@ -385,40 +378,53 @@ def evaluate_true_false(question, user_answer):
     return 0.0  # Неверный ответ
 
 
-@login_required
-def evaluate_sequence(question, user_answers):
-    """Оценка последовательности"""
-    correct_order = list(question.answers.order_by('sequence_order').values_list('id', flat=True))
-
-    if not user_answers:
+def evaluate_sequence(question, user_answer):
+    """Оценка вопроса типа последовательность (перетаскивание карточек)"""
+    # Получаем правильный порядок ответов
+    correct_order = list(question.answers.order_by('id').values_list('id', flat=True))
+    if not user_answer:
+        print("Ответ пользователя отсутствует.")
         return 0.0
 
+    # Преобразуем ответ пользователя из JSON-строки в список
     try:
-        user_order = [int(user_answers.get(f'question_{question.id}_{answer_id}')) for answer_id in correct_order]
+        user_order_ = json.loads(user_answer)  # Преобразуем JSON в список id
+        user_order = [int(i) for i in user_order_]
     except (ValueError, TypeError):
+        print("Ошибка при обработке ответа.")
         return 0.0
 
+    # Сравниваем правильную последовательность с пользовательской
     if correct_order == user_order:
         return 1.0
     return 0.0
 
 
-@login_required
-def evaluate_match(question, user_answers):
-    """Оценка соответствия"""
-    correct_matches = {str(answer.id): answer.match_pair for answer in question.answers.all()}
+def evaluate_match(question, user_answer):
+    """Оценка вопроса типа соответствие"""
+    # Получаем правильные соответствия как множество кортежей
+    correct_matches = {(str(answer.id), answer.match_pair) for answer in question.answers.all()}
 
-    if not user_answers:
+    if not user_answer:
+        print("Ответ пользователя для match пуст или None")
         return 0.0
 
     try:
-        user_matches = {str(answer_id): user_answers.get(f'question_{question.id}_{answer_id}') for answer_id in correct_matches.keys()}
-    except (ValueError, TypeError):
+        # Загружаем ответ пользователя как словарь и преобразуем в множество кортежей
+        user_matches_dict = json.loads(user_answer) if isinstance(user_answer, str) else user_answer
+        user_matches = {(key, value) for key, value in user_matches_dict.items()}
+
+    except (json.JSONDecodeError, TypeError):
+        print("Ошибка при декодировании JSON ответа пользователя для match")
         return 0.0
 
+    # Сравниваем правильные пары и пары пользователя
     if correct_matches == user_matches:
+
         return 1.0
-    return 0.0
+    else:
+
+        return 0.0
 
 
 @login_required

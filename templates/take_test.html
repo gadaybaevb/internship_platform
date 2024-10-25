@@ -9,13 +9,12 @@
         Время до завершения: <span id="time-left">{{ time_left|minutes }}:{{ time_left|seconds|stringformat:"02d" }}</span>
     </div>
 
-    <form id="test-form" method="post">
+    <form id="test-form" method="post" onsubmit="return validateForm()">
         {% csrf_token %}
         <div class="question">
             <h4>{{ current_question_number }}. {{ current_question.text }}</h4>
 
             {% if current_question.question_type == 'single' %}
-                <!-- Один верный ответ -->
                 {% for answer in current_question.answers_shuffled %}
                     <div class="form-check">
                         <input type="radio" name="question_{{ current_question.id }}" value="{{ answer.id }}" class="form-check-input" required>
@@ -24,7 +23,6 @@
                 {% endfor %}
 
             {% elif current_question.question_type == 'true_false' %}
-                <!-- Верно/Неверно -->
                 <div class="form-check">
                     <input type="radio" name="question_{{ current_question.id }}" value="true" class="form-check-input" required>
                     <label class="form-check-label">Верно</label>
@@ -35,7 +33,6 @@
                 </div>
 
             {% elif current_question.question_type == 'multiple' %}
-                <!-- Несколько верных ответов -->
                 {% for answer in current_question.answers_shuffled %}
                     <div class="form-check">
                         <input type="checkbox" name="question_{{ current_question.id }}_answers" value="{{ answer.id }}" class="form-check-input">
@@ -44,28 +41,39 @@
                 {% endfor %}
 
             {% elif current_question.question_type == 'sequence' %}
-                <!-- Последовательность -->
-                <p>Выберите правильный порядок:</p>
-                <ul>
+                <p>Перетащите карточки в правильном порядке:</p>
+                <ul id="sequence-list" class="list-group">
                     {% for answer in current_question.answers_shuffled %}
-                        <li>
-                            <input type="number" name="question_{{ current_question.id }}_order_{{ answer.id }}" min="1" max="{{ current_question.answers.count }}" class="form-control d-inline-block" style="width: 60px;">
+                        <li class="list-group-item sequence-item" data-id="{{ answer.id }}">
                             {{ answer.text }}
                         </li>
                     {% endfor %}
                 </ul>
+                <input type="hidden" id="sequence-result" name="question_{{ current_question.id }}_sequence">
 
             {% elif current_question.question_type == 'match' %}
-                <!-- Соответствие -->
-                <p>Сопоставьте пары:</p>
-                <ul>
-                    {% for answer in current_question.answers_shuffled %}
-                        <li>
-                            {{ answer.text }} — <input type="text" name="question_{{ current_question.id }}_match_{{ answer.id }}" class="form-control d-inline-block" style="width: 300px;">
-                        </li>
-                    {% endfor %}
-                </ul>
-
+                <p>Сопоставьте элементы:</p>
+                <div class="row">
+                    <div class="col-6">
+                        <ul id="match-list-left" class="list-group">
+                            {% for left_id, left_text in initial_pairs.left %}
+                                <li class="list-group-item match-item" data-id="{{ left_id }}">
+                                    {{ left_text }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="col-6">
+                        <ul id="match-list-right" class="list-group">
+                            {% for right_id, right_text in initial_pairs.right %}
+                                <li class="list-group-item match-item" data-id="{{ right_id }}">
+                                    {{ right_text }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                <input type="hidden" id="match-result" name="question_{{ current_question.id }}_matches">
             {% endif %}
         </div>
 
@@ -73,19 +81,19 @@
 
         <div class="mt-3">
             {% if not is_last_question %}
-                <button type="submit" class="btn btn-primary">Следующий вопрос</button>
+                <button type="submit" id="submit-btn" class="btn btn-primary">Следующий вопрос</button>
             {% else %}
-                <button type="submit" class="btn btn-success">Завершить тест</button>
+                <button type="submit" id="submit-btn" class="btn btn-success">Завершить тест</button>
             {% endif %}
         </div>
     </form>
 </div>
 
-<!-- Скрипт для таймера -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
 <script>
     const timerElement = document.getElementById('time-left');
     let timeLeft = {{ time_left }};
-
+    
     function updateTimer() {
         const minutes = Math.floor(timeLeft / 60);
         const seconds = timeLeft % 60;
@@ -93,10 +101,51 @@
         if (timeLeft > 0) {
             timeLeft--;
         } else {
-            document.getElementById('test-form').submit();  // Завершить тест при истечении времени
+            document.getElementById('test-form').submit(); 
         }
     }
-
     setInterval(updateTimer, 1000);
+
+    const sequenceList = document.getElementById('sequence-list');
+    if (sequenceList) {
+        new Sortable(sequenceList, {
+            animation: 150,
+            onEnd: function () {
+                const order = Array.from(sequenceList.querySelectorAll('li')).map(el => el.dataset.id);
+                document.getElementById('sequence-result').value = JSON.stringify(order);
+            }
+        });
+    }
+
+    const leftList = document.getElementById('match-list-left');
+    const rightList = document.getElementById('match-list-right');
+    const matchResult = document.getElementById('match-result');
+
+    if (leftList && rightList && matchResult) {
+        new Sortable(leftList, {
+            group: { name: 'shared', pull: true, put: false },
+            animation: 150,
+            onEnd: function () { updateMatchResult(); }
+        });
+
+        new Sortable(rightList, {
+            group: { name: 'shared', pull: true, put: false },
+            animation: 150,
+            onEnd: function () { updateMatchResult(); }
+        });
+    }
+
+    function updateMatchResult() {
+        const pairs = {};
+        const leftItems = Array.from(leftList.querySelectorAll('li'));
+        const rightItems = Array.from(rightList.querySelectorAll('li'));
+        leftItems.forEach((leftEl, index) => {
+            const rightEl = rightItems[index];
+            if (leftEl && rightEl) {
+                pairs[leftEl.dataset.id] = rightEl.dataset.id;
+            }
+        });
+        matchResult.value = JSON.stringify(pairs);
+    }
 </script>
 {% endblock %}

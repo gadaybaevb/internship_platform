@@ -34,7 +34,11 @@ class QuestionForm(forms.ModelForm):
 #             self.forms.append(AnswerForm())
 
 
-AnswerFormSet = inlineformset_factory(Question, Answer, fields=('text', 'is_correct'), extra=4)
+AnswerFormSet = inlineformset_factory(Question, Answer, fields=('text', 'is_correct', 'sequence_order', 'match_pair'),
+                                      labels={
+                                            'match_pair': 'Соответствие',
+                                            'sequence_order': 'Последовательность'
+                                      }, extra=4)
 
 
 class AnswerForm(forms.ModelForm):
