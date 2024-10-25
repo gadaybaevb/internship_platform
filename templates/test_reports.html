@@ -30,7 +30,7 @@
         <table class="table table-bordered">
             <thead>
                 <tr>
-                    <th>#</th> <!-- Нумерация строк -->
+                    <th>#</th>
                     <th>ФИО стажера</th>
                     <th>Тест</th>
                     <th>Дата завершения</th>
@@ -42,8 +42,13 @@
             <tbody>
                 {% for result in page_obj %}
                 <tr>
-                    <td>{{ forloop.counter }}</td> <!-- Номер строки -->
-                    <td>{{ result.user.full_name }}</td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <!-- Ссылка на детализированный отчет -->
+                        <a href="{% url 'test_report' result.id %}">
+                            {{ result.user.full_name }}
+                        </a>
+                    </td>
                     <td>{{ result.test.title }}</td>
                     <td>{{ result.completed_at|date:"d.m.Y H:i" }}</td>
                     <td>{{ result.correct_answers_count }}</td>

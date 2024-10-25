@@ -65,3 +65,16 @@ class TestResult(models.Model):
         # Проверяем, сдал ли стажер все тесты для его позиции
         return TestResult.objects.filter(user=self.intern).count() == Test.objects.filter(
             position=self.position).count()
+
+
+class TestQuestionResult(models.Model):
+    test_result = models.ForeignKey(TestResult, on_delete=models.CASCADE, related_name="question_results")
+    question_text = models.TextField()  # Текст вопроса
+    question_type = models.CharField(max_length=20)  # Тип вопроса (например, single, multiple, match, sequence)
+    options = models.JSONField()  # Хранение вариантов ответа как JSON
+    user_answer = models.JSONField()  # Ответ пользователя, JSON для гибкости
+    correct_answer = models.JSONField()  # Правильный ответ, JSON
+    is_correct = models.BooleanField()  # Поле для отметки, был ли ответ правильным
+
+    def __str__(self):
+        return f"Вопрос: {self.question_text} — Результат: {'Правильно' if self.is_correct else 'Неправильно'}"

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Отчет по результатам теста: {{ test_result.test.title }}</h2>
+    <p>Пользователь: {{ test_result.user.get_full_name }}</p>
+    <p>Дата завершения: {{ test_date }}</p> <!-- Дата теста -->
+    <p>Результат: {{ test_result.score }}%</p>
+
+    <div class="questions">
+        {% for question in questions_with_answers %}
+            <div class="question">
+                <h4>{{ question.question_text }}</h4>
+                <ul>
+                    {% for answer in question.answers %}
+                        <li style="color: {% if answer.is_user_correct %}green{% else %}red{% endif %}">
+                            {{ answer.text }}
+                            {% if answer.is_user_correct %}
+                                ✔️
+                            {% elif answer.is_correct %}
+                                ❌
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <hr>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Test, Question, Answer, TestResult
+from .models import Test, Question, Answer, TestResult, TestQuestionResult
 from .forms import QuestionForm, TestForm, AnswerForm, AnswerFormSet
 from django.core.paginator import Paginator
 from django.contrib import messages
@@ -254,67 +254,72 @@ def evaluate_test(test, user_answers, request):
     max_score = 0.0
     correct_answers_count = 0
 
-    for question in test.questions.all():
-        question_id_str = str(question.id)  # Преобразуем ID вопроса в строку для получения данных из user_answers
-
-        if question.question_type == 'single':
-            user_answer = user_answers.get(question_id_str)
-            score = evaluate_single(question, user_answer)
-            total_score += score
-            max_score += 1
-            if score == 1.0:
-                correct_answers_count += 1
-
-        elif question.question_type == 'multiple':
-            user_answer = user_answers.get(question_id_str)
-            score = evaluate_multiple(question, user_answer)
-            total_score += score
-            max_score += 1
-            if score == 1.0:
-                correct_answers_count += 1
-
-        elif question.question_type == 'true_false':
-            user_answer = user_answers.get(question_id_str)
-            score = evaluate_true_false(question, user_answer)
-            total_score += score
-            max_score += 1
-            if score == 1.0:
-                correct_answers_count += 1
-
-        elif question.question_type == 'sequence':
-            user_answer = user_answers.get(question_id_str)
-            score = evaluate_sequence(question, user_answer)
-            total_score += score
-            max_score += 1
-            if score == 1.0:
-                correct_answers_count += 1
-
-        elif question.question_type == 'match':
-            user_answer = user_answers.get(f"{question_id_str}_matches")
-            score = evaluate_match(question, user_answer)
-            correct_matches = {str(a.id): a.match_pair for a in question.answers.all()}
-            total_score += score
-            max_score += 1
-            if score == 1.0:
-                correct_answers_count += 1
-
-    total_questions_count = test.questions.count()
-
-    if max_score > 0:
-        percentage_score = round((total_score / max_score) * 100, 1)
-    else:
-        percentage_score = 0
-
-    # Сохраняем результат с правильными ответами и общим количеством вопросов
-    TestResult.objects.create(
+    # Создаем экземпляр TestResult для хранения общей информации о тесте
+    test_result = TestResult.objects.create(
         user=request.user,
         test=test,
-        score=percentage_score,
-        correct_answers_count=correct_answers_count,
-        total_questions_count=total_questions_count
+        score=0,  # Оценка будет обновлена позже
+        correct_answers_count=0,
+        total_questions_count=test.questions.count()
     )
 
-    return percentage_score
+    for question in test.questions.all():
+        question_id_str = str(question.id)
+        options = {str(answer.id): answer.text for answer in question.answers.all()}
+        user_answer = user_answers.get(question_id_str) or user_answers.get(f"{question_id_str}_matches")
+        is_correct = False
+        correct_answer = {}
+
+        # Оценка каждого типа вопроса
+        if question.question_type == 'single':
+            score = evaluate_single(question, user_answer)
+            correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
+            is_correct = score == 1.0
+
+        elif question.question_type == 'multiple':
+            score = evaluate_multiple(question, user_answer)
+            correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
+            is_correct = score == 1.0
+
+        elif question.question_type == 'true_false':
+            score = evaluate_true_false(question, user_answer)
+            correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
+            is_correct = score == 1.0
+
+        elif question.question_type == 'sequence':
+            score = evaluate_sequence(question, user_answer)
+            correct_answer = {str(answer.id): answer.text for answer in question.answers.order_by('sequence_order')}
+            is_correct = score == 1.0
+
+        elif question.question_type == 'match':
+            score = evaluate_match(question, user_answer)
+            correct_answer = {str(answer.id): answer.match_pair for answer in question.answers.all()}
+            is_correct = score == 1.0
+
+        # Сохраняем детализированную информацию о каждом вопросе в TestQuestionResult
+        TestQuestionResult.objects.create(
+            test_result=test_result,
+            question_text=question.text,
+            question_type=question.question_type,
+            options=options,
+            user_answer=user_answer if user_answer is not None else {},  # Запись ответа пользователя
+            correct_answer=correct_answer,  # Запись правильного ответа
+            is_correct=is_correct
+        )
+
+        # Обновляем общие показатели
+        total_score += score
+        max_score += 1
+        if is_correct:
+            correct_answers_count += 1
+
+    # Обновляем общую оценку теста
+    test_result.score = round((total_score / max_score) * 100, 1) if max_score > 0 else 0
+    test_result.correct_answers_count = correct_answers_count
+    test_result.save()
+
+    return test_result.score
+
 
 
 def evaluate_single(question, user_answer):
@@ -475,3 +480,36 @@ def test_instructions(request, test_id):
 def notify_user(user, message):
     """Функция для создания уведомления"""
     Notification.objects.create(user=user, message=message)
+
+
+def test_report(request, test_result_id):
+    # Получаем результат теста
+    test_result = get_object_or_404(TestResult, id=test_result_id, user=request.user)
+    # Получаем детализированные результаты каждого вопроса для данного теста
+    question_results = TestQuestionResult.objects.filter(test_result=test_result)
+
+    # Формируем данные для шаблона, добавляя информацию о каждом вопросе и его вариантах ответов
+    questions_with_answers = []
+    for question_result in question_results:
+        answers = []
+        for answer_id, answer_text in question_result.options.items():
+            is_user_correct = (
+                str(answer_id) in question_result.user_answer
+                and str(answer_id) in question_result.correct_answer
+            )
+            answers.append({
+                'text': answer_text,
+                'is_user_correct': is_user_correct,
+                'is_correct': str(answer_id) in question_result.correct_answer
+            })
+
+        questions_with_answers.append({
+            'question_text': question_result.question_text,
+            'answers': answers
+        })
+
+    return render(request, 'test_report.html', {
+        'test_result': test_result,
+        'questions_with_answers': questions_with_answers,
+        'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
+    })
