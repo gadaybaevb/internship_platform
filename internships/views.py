@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from .models import Material, Position, Internship, StageProgress, MaterialProgress
 from departments.models import Department
 from django.contrib.auth import get_user_model
-from .forms import MaterialForm, ReviewForm
+from .forms import MaterialForm, ReviewForm, AddInternForm
 from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from django.contrib import messages
@@ -172,6 +172,31 @@ def assign_mentor(request, internship_id):
         'positions': positions,  # Передаем позиции в шаблон
     }
     return render(request, 'assign_mentor.html', context)
+
+
+@staff_member_required
+def add_intern(request):
+    if request.method == 'POST':
+        form = AddInternForm(request.POST)
+        if form.is_valid():
+            # Получаем объекты сразу из формы
+            intern = form.cleaned_data['intern']
+            mentor = form.cleaned_data['mentor']
+            position = form.cleaned_data['position']
+
+            # Создаем новую стажировку
+            internship = Internship.objects.create(
+                intern=intern,
+                mentor=mentor,
+                position=position
+            )
+
+            messages.success(request, f"Стажировка для {intern.full_name} успешно создана с ментором {mentor.full_name}.")
+            return redirect('internship_list')
+    else:
+        form = AddInternForm()
+
+    return render(request, 'add_intern.html', {'form': form})
 
 
 @login_required

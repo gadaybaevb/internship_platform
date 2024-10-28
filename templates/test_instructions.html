@@ -6,6 +6,71 @@
     <p>Минимальный проходной балл: {{ test.passing_score }}%</p>
     <p>Количество вопросов: {{ test.required_questions }}</p>
     <p>Время на тест: {{ test.time_limit }} минут</p>
-    <a href="{% url 'take_test' test.id %}" class="btn btn-primary">Начать тест</a>
+    
+    <h3>Типы вопросов:</h3>
+    
+    <div class="instruction">
+        <h4>1. Один верный ответ (radio button)</h4>
+        <p>Выберите один вариант ответа из предложенных.</p>
+        <div>
+            <input type="radio" name="single_example" id="single1">
+            <label for="single1">Вариант 1</label><br>
+            <input type="radio" name="single_example" id="single2">
+            <label for="single2">Вариант 2</label>
+        </div>
+    </div>
+    
+    <div class="instruction">
+        <h4>2. Несколько верных ответов (checkbox)</h4>
+        <p>Выберите несколько вариантов ответа. Все выбранные должны быть правильными.</p>
+        <div>
+            <input type="checkbox" name="multiple_example" id="multi1">
+            <label for="multi1">Вариант 1</label><br>
+            <input type="checkbox" name="multiple_example" id="multi2">
+            <label for="multi2">Вариант 2</label>
+        </div>
+    </div>
+    
+    <div class="instruction">
+        <h4>3. Верно/Неверно (radio button)</h4>
+        <p>Выберите, является ли утверждение верным или неверным.</p>
+        <div>
+            <input type="radio" name="true_false_example" id="true">
+            <label for="true">Верно</label><br>
+            <input type="radio" name="true_false_example" id="false">
+            <label for="false">Неверно</label>
+        </div>
+    </div>
+    
+    <div class="instruction">
+        <h4>4. Последовательность (перетаскивание)</h4>
+        <p>Перетащите элементы в правильном порядке.</p>
+        <ul id="sequence-example" class="list-group">
+            <li class="list-group-item">Элемент 1</li>
+            <li class="list-group-item">Элемент 2</li>
+            <li class="list-group-item">Элемент 3</li>
+        </ul>
+    </div>
+    
+    <div class="instruction">
+        <h4>5. Соответствие (перетаскивание)</h4>
+        <p>Соотнесите элементы слева с элементами справа.</p>
+        <div class="row">
+            <div class="col-6">
+                <ul class="list-group">
+                    <li class="list-group-item">Элемент A</li>
+                    <li class="list-group-item">Элемент B</li>
+                </ul>
+            </div>
+            <div class="col-6">
+                <ul class="list-group">
+                    <li class="list-group-item">Ответ 1</li>
+                    <li class="list-group-item">Ответ 2</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <a href="{% url 'take_test' test.id %}" class="btn btn-primary mt-4">Начать тест</a>
 </div>
 {% endblock %}

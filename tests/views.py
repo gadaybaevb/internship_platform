@@ -462,14 +462,21 @@ def test_results(request, test_id):
 def test_instructions(request, test_id):
     test = get_object_or_404(Test, id=test_id)
 
-    # Проверяем наличие завершенных тестов
-    test_result = TestResult.objects.filter(user=request.user, test=test).first()
+    # Проверяем, является ли пользователь суперпользователем или администратором
+    if request.user.is_superuser or request.user.role == 'admin':
+        # Суперпользователь и администратор всегда имеют доступ к тесту
+        test_result_exists = False
+    else:
+        # Проверка наличия завершенных тестов по стажеру
+        intern_id = request.user.id
+        test_result_exists = TestResult.objects.filter(user__id=intern_id, test=test).exists()
 
-    # if test_result and test_result.completed_at:
-    #     messages.info(request, 'Вы уже завершили этот тест.')
-    #     return redirect('test_results', test_id=test.id)
+    # Если тест уже пройден, перенаправляем к результатам
+    if test_result_exists:
+        messages.info(request, 'Вы уже завершили этот тест.')
+        return redirect('test_results', test_id=test.id)
 
-    # Инициализируем сессию для начала теста
+    # Инициализация сессии для начала теста
     if 'test_start_time' not in request.session:
         request.session['test_start_time'] = timezone.now().isoformat()
 

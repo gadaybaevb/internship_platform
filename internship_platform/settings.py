@@ -138,6 +138,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 # Custom User Model
+LOGIN_URL = 'login'  # или 'users:login', если используется пространственное именование
+LOGOUT_URL = 'logout'  # или 'users:logout'
 AUTH_USER_MODEL = 'users.CustomUser'
 LOGIN_REDIRECT_URL = 'home'  # Перенаправление после успешного входа
 LOGOUT_REDIRECT_URL = 'login'  # Перенаправление после выхода
