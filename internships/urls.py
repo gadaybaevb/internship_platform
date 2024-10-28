@@ -18,6 +18,7 @@ from .views import (
     completed_internships_report,
     mentor_report,
     department_materials_report,
+    add_intern,
 )
 
 urlpatterns = [
@@ -28,6 +29,8 @@ urlpatterns = [
     path('my_materials/', intern_materials, name='intern_materials'),
 
     path('interships/<int:internship_id>/assign-mentor/', assign_mentor, name='assign_mentor'),
+    path('internships/add/', add_intern, name='add_intern'),
+
     path('internships/', internship_list, name='internship_list'),
 
     path('dashboard/', dashboard, name='dashboard'),

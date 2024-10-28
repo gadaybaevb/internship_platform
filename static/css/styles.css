@@ -211,3 +211,16 @@ ul#sequence-list .list-group-item:hover {
     background-color: #e0f7fa;
     cursor: grab;
 }
+
+
+.instruction {
+        margin-bottom: 20px;
+    }
+
+.badge-primary {
+    background-color: #007bff;
+    color: #fff;
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    border-radius: 5px;
+}
