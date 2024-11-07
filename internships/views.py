@@ -21,6 +21,7 @@ from django.contrib.auth.decorators import login_required
 
 User = get_user_model()
 
+
 @login_required
 def material_list(request):
     search_query = request.GET.get('search', '')
@@ -221,6 +222,8 @@ def dashboard(request):
     user = request.user
     check_deadlines(user)  # Проверяем дедлайны
 
+    form = None  # Инициализация переменной `form`
+
     if user.role == 'admin':
         # Администратор видит всех стажеров и их прогресс
         internships = Internship.objects.all()
@@ -382,7 +385,6 @@ def intern_materials(request):
     })
 
 
-@login_required
 def check_deadlines(user):
     # Получаем все активные этапы стажировки для стажера
     stages_in_progress = StageProgress.objects.filter(intern=user, completed=False)
