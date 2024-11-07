@@ -10,14 +10,16 @@
                 <tr>
                     <th>#</th>
                     <th>Стажер</th>
+                    <th>Последний вход стажера</th>
                     <th>Позиция</th>
                     <th>Ментор</th>
+                    <th>Последний вход ментора</th>
                     <th>Этап</th>
                     <th>Статус</th>
                     <th>Дата завершения</th>
                     <th>Материалы в ожидании</th>
-                    <th>Отзыв</th> <!-- Столбец для отзыва -->
-                    <th>Отчет</th> <!-- Столбец для кнопки отчета -->
+                    <th>Отзыв</th>
+                    <th>Отчет</th>
                 </tr>
             </thead>
             <tbody>
@@ -25,7 +27,17 @@
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td><a href="{% url 'mentor_view_intern_materials' internship.intern.id %}">{{ internship.intern.full_name }}</a></td>
-                    <td>{{ internship.position.name }}</td>
+                    <td>{{ internship.intern.last_login|date:"d.m.Y H:i" }}</td>
+
+                    <!-- Проверяем наличие позиции -->
+                    <td>
+                        {% if internship.position %}
+                            {{ internship.position.name }}
+                        {% else %}
+                            Не указана
+                        {% endif %}
+                    </td>
+
                     <td>
                         {% if internship.mentor %}
                             {{ internship.mentor.full_name }}
@@ -33,6 +45,16 @@
                             Не назначен
                         {% endif %}
                     </td>
+                    
+                    <!-- Проверяем наличие даты последнего входа для ментора -->
+                    <td>
+                        {% if internship.mentor and internship.mentor.last_login %}
+                            {{ internship.mentor.last_login|date:"d.m.Y H:i" }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+
                     <td>Этап {{ internship.intern.stage_progresses.all.last.stage }}</td>
                     <td>
                         {% if internship.is_completed %}

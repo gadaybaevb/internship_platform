@@ -226,10 +226,10 @@ def dashboard(request):
 
     if user.role == 'admin':
         # Администратор видит всех стажеров и их прогресс
-        internships = Internship.objects.all()
+        internships = Internship.objects.select_related('intern', 'mentor', 'position').all()
     elif user.role == 'mentor':
         # Ментор видит только своих стажеров
-        internships = Internship.objects.filter(mentor=user)
+        internships = Internship.objects.select_related('intern', 'position').filter(mentor=user)
 
         for internship in internships:
             # Для каждого стажера добавляем количество материалов, ожидающих подтверждения
@@ -278,6 +278,7 @@ def dashboard(request):
         'role': user.role,
         'form': form,  # Передаем форму для отзыва
     })
+
 
 
 @login_required
