@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Добавить вопрос к тесту: {{ test.title }}</h2>
-    <form method="post">
+    <form method="post" onsubmit="return validateForm()">  <!-- Добавлено событие onsubmit -->
         {% csrf_token %}
         <div class="form-group">
             {{ question_form.text|as_crispy_field }}  <!-- Текст вопроса -->
@@ -18,17 +18,13 @@
             {% for form in formset %}
             <div class="form-row answer-row">
                 <div class="col">
-                    {{ form.text|as_crispy_field }}  <!-- Вопрос или часть вопроса -->
+                    {{ form.text|as_crispy_field }}  <!-- Текст ответа -->
                 </div>
-
-                <!-- Поле is_correct будет скрыто для типа вопроса "match" и "sequence" -->
                 <div class="col">
                     {{ form.is_correct|as_crispy_field }}
                 </div>
-
-                <!-- Поле для соответствия (match_pair) отображается только для вопросов типа "match" -->
                 <div class="col match-field" style="display: none;">
-                    {{ form.match_pair|as_crispy_field }}  <!-- Соответствие -->
+                    {{ form.match_pair|as_crispy_field }}  <!-- Соответствие для match -->
                 </div>
             </div>
             <hr>
@@ -44,7 +40,6 @@
     const questionTypeField = document.getElementById('id_question_type');
     const answerRows = document.querySelectorAll('.answer-row');
 
-    // Функция для отображения полей в зависимости от типа вопроса
     function toggleFields() {
         const isMatchType = questionTypeField.value === 'match';
         const isSequenceType = questionTypeField.value === 'sequence';
@@ -53,35 +48,65 @@
             const matchField = row.querySelector('.match-field');
             const isCorrectField = row.querySelector('[name$="is_correct"]');
 
-            // Показываем/скрываем поле match_pair для типа match
             if (matchField) {
                 matchField.style.display = isMatchType ? '' : 'none';
             }
 
-            // Скрываем поле is_correct для типа sequence или match
             if (isCorrectField) {
                 isCorrectField.parentElement.style.display = (isSequenceType || isMatchType) ? 'none' : '';
             }
 
-            // Если выбран тип "sequence", показываем только 4 ответа
             if (isSequenceType) {
-                if (index < 4) {
-                    row.style.display = '';  // Показываем первые 4 строки
-                } else {
-                    row.style.display = 'none';  // Скрываем остальные
-                }
-            } else if (isMatchType) {
-                row.style.display = '';  // Показываем все строки
+                row.style.display = index < 4 ? '' : 'none';
             } else {
-                row.style.display = '';  // Показываем все строки для других типов вопросов
+                row.style.display = '';
             }
         });
     }
 
-    // Обработчик изменения типа вопроса
-    questionTypeField.addEventListener('change', toggleFields);
+    function validateForm() {
+    const selectedCorrectAnswers = Array.from(document.querySelectorAll('[name$="is_correct"]:checked')).length;
+    const answerTexts = Array.from(document.querySelectorAll('[name$="text"]')).map(input => input.value.trim());
+    const nonEmptyAnswers = answerTexts.filter(text => text).length;
+    const questionType = questionTypeField.value;
 
-    // Первоначальный вызов функции при загрузке страницы
+    // Проверка уникальности текстов ответов
+    const uniqueAnswers = new Set(answerTexts.filter(text => text)); // Создаем множество уникальных ответов, игнорируя пустые
+    if (uniqueAnswers.size !== nonEmptyAnswers) {
+        alert("Все ответы должны быть уникальными. Найдены повторяющиеся ответы.");
+        return false;
+    }
+
+    // Проверка заполненности всех полей для типов, кроме true/false
+    if (questionType !== 'true_false' && answerTexts.some(text => text === "")) {
+        alert("Все поля ответов должны быть заполнены для данного типа вопроса.");
+        return false;
+    }
+
+    if (questionType === 'single' && selectedCorrectAnswers !== 1) {
+        alert('Должен быть только один правильный ответ.');
+        return false;
+    }
+
+    if (questionType === 'multiple') {
+        if (selectedCorrectAnswers <= 1) {
+            alert('Выберите больше одного, правильного ответа.');
+            return false;
+        }
+    }
+
+    if (questionType === 'true_false') {
+        if (nonEmptyAnswers !== 2 || selectedCorrectAnswers !== 1) {
+            alert('Для типа "true/false" должно быть ровно два варианта ответа, и один из них должен быть правильным.');
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+    questionTypeField.addEventListener('change', toggleFields);
     toggleFields();
 </script>
 {% endblock %}

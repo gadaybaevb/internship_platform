@@ -126,38 +126,67 @@ def create_test(request):
 def add_question(request, test_id):
     test = get_object_or_404(Test, id=test_id)
 
+    AnswerFormSet = modelformset_factory(Answer, form=AnswerForm, extra=4, can_delete=True)
+
     if request.method == 'POST':
         question_form = QuestionForm(request.POST)
-        formset = AnswerFormSet(request.POST)
+        formset = AnswerFormSet(request.POST, queryset=Answer.objects.none())
 
         if question_form.is_valid() and formset.is_valid():
             question = question_form.save(commit=False)
             question.test = test
+
+            # Получаем данные о типе вопроса и ответах
+            question_type = question.question_type
+            answers = [form.cleaned_data for form in formset if form.cleaned_data.get('text')]
+
+            # Валидация ответов на основе типа вопроса
+            if question_type == 'single':
+                correct_answers = [answer for answer in answers if answer.get('is_correct')]
+                if len(correct_answers) != 1:
+                    messages.error(request, 'Для типа "single" должен быть выбран ровно один правильный ответ.')
+                    return render(request, 'add_question.html',
+                                  {'question_form': question_form, 'formset': formset, 'test': test})
+
+            elif question_type == 'multi':
+                correct_answers = [answer for answer in answers if answer.get('is_correct')]
+                if len(correct_answers) <= 1 or len(correct_answers) == len(answers):
+                    messages.error(request, 'Для типа "multi" выберите больше одного, но не все ответы как правильные.')
+                    return render(request, 'add_question.html',
+                                  {'question_form': question_form, 'formset': formset, 'test': test})
+
+            elif question_type == 'true_false':
+                if len(answers) != 2 or sum(1 for answer in answers if answer.get('is_correct')) != 1:
+                    messages.error(request,
+                                   'Для типа "true_false" должно быть ровно два ответа, и один из них должен быть правильным.')
+                    return render(request, 'add_question.html',
+                                  {'question_form': question_form, 'formset': formset, 'test': test})
+
+            # elif question_type == 'match':
+            #     if not all(answer.get('text') and answer.get('match_pair') for answer in answers):
+            #         messages.error(request, 'Для типа "match" каждая пара вопрос-ответ должна быть заполнена.')
+            #         return render(request, 'add_question.html',
+            #                       {'question_form': question_form, 'formset': formset, 'test': test})
+
+            # Если все проверки пройдены, сохраняем вопрос и ответы
             question.save()
 
-            # Проверяем тип вопроса и добавляем только 2 варианта для типа 'true_false'
-            if question.question_type == 'true_false':
+            # Для 'true_false' добавляем только два варианта ответа
+            if question_type == 'true_false':
                 Answer.objects.create(question=question, text="Верно", is_correct=True)
                 Answer.objects.create(question=question, text="Неверно", is_correct=False)
-
-            elif question.question_type == 'match':
-                # Для 'match' обрабатываем пары (вопрос -> соответствие)
-                for form in formset:
-                    if form.cleaned_data.get('text') and form.cleaned_data.get('match_pair'):
-                        # Добавляем пару вопрос-ответ
-                        Answer.objects.create(
-                            question=question,
-                            text=form.cleaned_data['text'],  # Вопрос
-                            match_pair=form.cleaned_data['match_pair']  # Соответствие
-                        )
             else:
-                formset.instance = question
-                formset.save()
+                # Сохраняем ответы для других типов вопросов
+                for form in formset:
+                    if form.cleaned_data.get('text'):  # Проверка, что текст ответа не пустой
+                        answer = form.save(commit=False)
+                        answer.question = question
+                        answer.save()
 
             return redirect('tests_list')
     else:
         question_form = QuestionForm()
-        formset = AnswerFormSet()
+        formset = AnswerFormSet(queryset=Answer.objects.none())
 
     return render(request, 'add_question.html', {'question_form': question_form, 'formset': formset, 'test': test})
 

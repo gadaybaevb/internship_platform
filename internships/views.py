@@ -1,4 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from openpyxl.cell import MergedCell
+
 from .models import Material, Position, Internship, StageProgress, MaterialProgress
 from departments.models import Department
 from django.contrib.auth import get_user_model
@@ -17,6 +19,10 @@ from django.db.models import Avg, F
 from django.contrib.messages import get_messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
+import pandas as pd
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font
 
 
 User = get_user_model()
@@ -278,7 +284,6 @@ def dashboard(request):
         'role': user.role,
         'form': form,  # Передаем форму для отзыва
     })
-
 
 
 @login_required
@@ -750,3 +755,90 @@ def department_materials_report(request):
         'department_stats': department_stats,
         'department_query': department_query,
     })
+
+
+@staff_member_required
+def weekly_report(request):
+    # Выбираем всех стажеров
+    interns = Internship.objects.all()
+
+    # Создаем список для данных отчета
+    report_data = []
+
+    for index, internship in enumerate(interns, start=1):
+        intern = internship.intern
+        position = internship.position
+        department = position.department.name if position.department else "No Department"  # Получаем департамент
+        supervisor = internship.mentor
+
+        # Подсчет материалов
+        total_materials = MaterialProgress.objects.filter(material__position=position).count()  # Общее количество материалов
+        completed_materials = MaterialProgress.objects.filter(intern=intern, completed=True).count()  # Количество завершенных материалов
+
+        # Получение результатов для промежуточного и финального тестов
+        mid_test_result = TestResult.objects.filter(user=intern, test__title__icontains="Mid").first()
+        final_test_result = TestResult.objects.filter(user=intern, test__title__icontains="Final").first()
+
+        # Добавление данных в отчет
+        report_data.append({
+            '№': index,  # Нумерация
+            'Employee': intern.full_name,
+            'Department': department,  # Новый столбец "Department"
+            'Position': position.name,
+            'Hiring date': internship.start_date.strftime('%d.%m.%Y'),
+            'Probation ending day': (internship.start_date + timezone.timedelta(days=90)).strftime('%d.%m.%Y'),
+            'Supervisor': supervisor.full_name if supervisor else "No Supervisor",
+            'Status': "on a probation" if completed_materials < total_materials else "completed",
+            'Materials passed': f"{completed_materials}/{total_materials}",
+            'Mid test': mid_test_result.score if mid_test_result else "Not taken",
+            'Final test': final_test_result.score if final_test_result else "Not taken"
+        })
+
+    # Создаем DataFrame
+    df = pd.DataFrame(report_data)
+
+    # Устанавливаем заголовок
+    current_date = timezone.now().date().strftime('%d.%m.%Y')
+    header = f"Недельный отчет на {current_date}"
+
+    # Настраиваем ответ для скачивания файла
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="weekly_report_{current_date}.xlsx"'
+
+    # Сохранение в Excel с учетом заголовка и двух пустых строк
+    with pd.ExcelWriter(response, engine='openpyxl') as writer:
+        # Создаем новый лист
+        sheet_name = 'Weekly Report'
+        df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=3)  # Записываем данные с 4-й строки
+
+        # Получаем книгу и лист для добавления заголовка и пустых строк
+        workbook = writer.book
+        sheet = workbook[sheet_name]
+
+        # Добавляем заголовок и объединяем его ячейки
+        sheet['A1'] = header
+        sheet.merge_cells('A1:L1')  # Объединяем ячейки для заголовка по ширине таблицы
+        sheet['A1'].font = Font(size=14, bold=True)  # Жирный шрифт для заголовка
+
+        # Применяем жирный шрифт ко всем заголовкам столбцов
+        for cell in sheet[4]:  # Заголовки находятся в 4-й строке (индекс строки смещен на две пустые строки и заголовок)
+            cell.font = Font(bold=True)
+
+        # Устанавливаем автоширину для всех столбцов, кроме первого
+        for i, column_cells in enumerate(sheet.columns):
+            if i == 0:  # Пропускаем первый столбец (№)
+                sheet.column_dimensions[column_cells[0].column_letter].width = 5  # Устанавливаем фиксированную ширину для первого столбца
+                continue
+
+            # Пропускаем объединенные ячейки и находим первую не объединенную ячейку для получения буквы столбца
+            for cell in column_cells:
+                if not isinstance(cell, MergedCell):
+                    column_letter = cell.column_letter
+                    break
+
+            # Для остальных столбцов вычисляем автоширину
+            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
+            adjusted_width = max_length + 2  # Добавляем немного отступа
+            sheet.column_dimensions[column_letter].width = adjusted_width
+
+    return response
