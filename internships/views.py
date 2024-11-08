@@ -857,33 +857,27 @@ def weekly_report(request):
 def intern_report_export(request, intern_id):
     # Получаем стажера
     intern = get_object_or_404(CustomUser, id=intern_id)
-    print(f"Стажер: {intern.full_name}")
 
-    # Получаем записи прогресса материалов для этого стажера
+    # Получаем завершенные материалы для стажера
     progress_records = MaterialProgress.objects.filter(intern=intern, completed=True)
-    print(progress_records if progress_records else 'нет данных')
-
-    # Если стажер не завершил ни одного материала, выводим сообщение и перенаправляем
     if not progress_records:
-        messages.warning(request, f"Стажер {intern.full_name} не завершил ни одного материала.")
         return HttpResponse('<script>alert("Стажер не завершил ни одного материала."); window.history.back();</script>')
 
-    # Подготавливаем данные для отчета
+    # Подготавливаем данные для отчета с нумерацией
     report_data = []
-    for record in progress_records:
+    for index, record in enumerate(progress_records, start=1):
         completion_time = record.completion_date
         confirmation_time = record.confirmation_date
         time_difference = (confirmation_time - completion_time) if confirmation_time and completion_time else None
 
         report_data.append({
+            '№': index,  # Нумерация
             'Стажер': intern.full_name,
             'Материал': record.material.title if record.material else "Не указан",
             'Дата завершения': completion_time.strftime('%Y-%m-%d %H:%M') if completion_time else "Не завершен",
             'Дата подтверждения': confirmation_time.strftime('%Y-%m-%d %H:%M') if confirmation_time else "Не подтвержден",
             'Время на подтверждение': str(time_difference) if time_difference else "Нет данных"
         })
-
-    print("Отчетные данные:", report_data)  # Отладочная информация
 
     # Создаем DataFrame для отчета
     df = pd.DataFrame(report_data)
@@ -893,9 +887,49 @@ def intern_report_export(request, intern_id):
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="report_{intern.full_name}_{today}.xlsx"'
 
-    # Сохраняем данные в Excel и отправляем файл
+    # Сохраняем данные в Excel и настраиваем стили
     with pd.ExcelWriter(response, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Отчет по стажеру')
+        df.to_excel(writer, index=False, sheet_name='Отчет по стажеру', startrow=3)  # Данные начинаются с 4-й строки
+
+        # Получаем книгу и лист для добавления стилей
+        workbook = writer.book
+        sheet = workbook['Отчет по стажеру']
+
+        # Настройки стилей
+        header_font = Font(size=14, bold=True)
+        header_fill = PatternFill(start_color="B0E0E6", end_color="B0E0E6", fill_type="solid")
+        cell_font = Font(size=12)
+        cell_fill = PatternFill(start_color="F0F8FF", end_color="F0F8FF", fill_type="solid")
+        alignment = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+
+        # Добавляем заголовок и объединяем ячейки
+        title = f"Отчет стажировки ({intern.full_name}) на {today}"
+        sheet['A1'] = title
+        sheet.merge_cells('A1:F1')
+        sheet['A1'].font = header_font
+        sheet['A1'].alignment = alignment
+
+        # Применяем стили к заголовкам таблицы (4-я строка)
+        for cell in sheet[4]:  # Заголовки столбцов
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = alignment
+            cell.border = thin_border
+
+        # Применяем стили к ячейкам данных
+        for row in sheet.iter_rows(min_row=5, max_row=sheet.max_row, min_col=1, max_col=sheet.max_column):
+            for cell in row:
+                cell.font = cell_font
+                cell.fill = cell_fill
+                cell.alignment = alignment
+                cell.border = thin_border
+
+        # Устанавливаем автоширину для всех столбцов
+        for col_num, column_cells in enumerate(sheet.columns, 1):
+            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
+            adjusted_width = max_length + 2
+            sheet.column_dimensions[get_column_letter(col_num)].width = adjusted_width
 
     return response
 
