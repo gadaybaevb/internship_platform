@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from openpyxl.cell import MergedCell
-
+from datetime import date
 from .models import Material, Position, Internship, StageProgress, MaterialProgress
 from departments.models import Department
 from django.contrib.auth import get_user_model
@@ -439,9 +439,10 @@ def mark_material_completed(request, material_id):
     )
 
     if request.method == 'POST':
-        # Меняем статус на "Ожидание"
+        # Меняем статус на "Ожидание подтверждения" после отметки стажером
         material_progress.status = 'pending'
-        material_progress.completed = False  # Сначала ждем подтверждения
+        material_progress.completed = False  # Ожидаем подтверждения от ментора
+        material_progress.completion_date = timezone.now() + timedelta(hours=5)  # Устанавливаем дату завершения со смещением на 5 часов
         material_progress.save()
 
         # Отправляем уведомление ментору
@@ -518,7 +519,7 @@ def confirm_material_completion(request, progress_id):
     if request.method == 'POST':
         material_progress.status = 'completed'  # Обновляем статус на завершённый
         material_progress.completed = True
-        material_progress.completion_date = timezone.now()
+        material_progress.confirmation_date = timezone.now() + timedelta(hours=5)  # Устанавливаем дату подтверждения со смещением на 5 часов
         material_progress.save()
 
         messages.success(request, 'Материал успешно подтверждён как завершённый.')
@@ -850,3 +851,76 @@ def weekly_report(request):
             sheet.column_dimensions[column_letter].width = adjusted_width
 
     return response
+
+
+@login_required
+def intern_report_export(request, intern_id):
+    # Получаем стажера
+    intern = get_object_or_404(CustomUser, id=intern_id)
+    print(f"Стажер: {intern.full_name}")
+
+    # Получаем записи прогресса материалов для этого стажера
+    progress_records = MaterialProgress.objects.filter(intern=intern, completed=True)
+    print(progress_records if progress_records else 'нет данных')
+
+    # Если стажер не завершил ни одного материала, выводим сообщение и перенаправляем
+    if not progress_records:
+        messages.warning(request, f"Стажер {intern.full_name} не завершил ни одного материала.")
+        return HttpResponse('<script>alert("Стажер не завершил ни одного материала."); window.history.back();</script>')
+
+    # Подготавливаем данные для отчета
+    report_data = []
+    for record in progress_records:
+        completion_time = record.completion_date
+        confirmation_time = record.confirmation_date
+        time_difference = (confirmation_time - completion_time) if confirmation_time and completion_time else None
+
+        report_data.append({
+            'Стажер': intern.full_name,
+            'Материал': record.material.title if record.material else "Не указан",
+            'Дата завершения': completion_time.strftime('%Y-%m-%d %H:%M') if completion_time else "Не завершен",
+            'Дата подтверждения': confirmation_time.strftime('%Y-%m-%d %H:%M') if confirmation_time else "Не подтвержден",
+            'Время на подтверждение': str(time_difference) if time_difference else "Нет данных"
+        })
+
+    print("Отчетные данные:", report_data)  # Отладочная информация
+
+    # Создаем DataFrame для отчета
+    df = pd.DataFrame(report_data)
+
+    # Подготавливаем ответ для скачивания Excel-файла с именем стажера и датой
+    today = date.today().strftime('%Y-%m-%d')
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="report_{intern.full_name}_{today}.xlsx"'
+
+    # Сохраняем данные в Excel и отправляем файл
+    with pd.ExcelWriter(response, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Отчет по стажеру')
+
+    return response
+
+
+@login_required
+def active_interns_list(request):
+    # Получаем все стажировки
+    internships = Internship.objects.all().select_related('intern', 'position', 'mentor')
+
+    # Добавляем данные о количестве материалов для каждого стажера
+    internships_data = []
+    for internship in internships:
+        # Общее количество материалов для позиции стажера
+        total_materials = Material.objects.filter(position=internship.position).count()
+
+        # Количество завершенных материалов для стажера
+        completed_materials = MaterialProgress.objects.filter(intern=internship.intern, completed=True).count()
+
+        # Добавляем стажировку и её данные в список
+        internships_data.append({
+            'internship': internship,
+            'total_materials': total_materials,
+            'completed_materials': completed_materials,
+        })
+
+    return render(request, 'active_interns_list.html', {
+        'internships_data': internships_data,
+    })

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Список активных стажеров</h2>
+
+    <table class="table table-striped mt-4">
+        <thead>
+            <tr>
+                <th>№</th> <!-- Столбец для нумерации -->
+                <th>ФИО</th>
+                <th>Позиция</th>
+                <th>Ментор</th>
+                <th>Пройденные материалы / Всего материалов</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for data in internships_data %}
+            <tr>
+                <td>{{ forloop.counter }}</td> <!-- Порядковый номер -->
+                <td>
+                    <a href="{% url 'intern_report_export' data.internship.intern.id %}">
+                        {{ data.internship.intern.full_name }}
+                    </a>
+                </td>
+                <td>{{ data.internship.position.name|default:"Не указана" }}</td>
+                <td>
+                    {% if data.internship.mentor %}
+                        {{ data.internship.mentor.full_name }}
+                    {% else %}
+                        Не назначен
+                    {% endif %}
+                </td>
+                <td>{{ data.completed_materials }} / {{ data.total_materials }}</td> <!-- Завершенные / Всего материалов -->
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
