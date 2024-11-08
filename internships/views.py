@@ -768,7 +768,7 @@ def weekly_report(request):
     for index, internship in enumerate(interns, start=1):
         intern = internship.intern
         position = internship.position
-        department = position.department.name if position.department else "No Department"  # Получаем департамент
+        department = position.department.name if position and position.department else "No Department"
         supervisor = internship.mentor
 
         # Подсчет материалов
