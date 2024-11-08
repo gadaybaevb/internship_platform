@@ -20,6 +20,7 @@ from .views import (
     department_materials_report,
     add_intern,
     weekly_report,
+    delete_internship,
 )
 
 urlpatterns = [
@@ -31,6 +32,7 @@ urlpatterns = [
 
     path('interships/<int:internship_id>/assign-mentor/', assign_mentor, name='assign_mentor'),
     path('internships/add/', add_intern, name='add_intern'),
+    path('internships/delete/<int:internship_id>/', delete_internship, name='delete_internship'),
 
     path('internships/', internship_list, name='internship_list'),
 

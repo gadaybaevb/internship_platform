@@ -207,6 +207,14 @@ def add_intern(request):
 
 
 @login_required
+def delete_internship(request, internship_id):
+    internship = get_object_or_404(Internship, id=internship_id)
+    internship.delete()
+    messages.success(request, "Стажировка успешно удалена.")
+    return redirect('internship_list')
+
+
+@login_required
 def internship_list(request):
     search_query = request.GET.get('search', '')  # Получаем запрос поиска
     internships = Internship.objects.all()
@@ -772,7 +780,7 @@ def weekly_report(request):
         supervisor = internship.mentor
 
         # Подсчет материалов
-        total_materials = MaterialProgress.objects.filter(material__position=position).count()  # Общее количество материалов
+        total_materials = Material.objects.filter(position=position).count()  # Общее количество материалов
         completed_materials = MaterialProgress.objects.filter(intern=intern, completed=True).count()  # Количество завершенных материалов
 
         # Получение результатов для промежуточного и финального тестов

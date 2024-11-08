@@ -63,7 +63,11 @@
                     {% endif %}
                 </td>
                 <td>
-                    <a href="{% url 'assign_mentor' internship.id %}" class="btn btn-primary btn-sm">Назначить/Изменить ментора</a>
+                    <a href="{% url 'assign_mentor' internship.id %}" class="btn btn-primary btn-sm" style="margin-bottom: 5px;">Изменить</a>
+                    <form action="{% url 'delete_internship' internship.id %}" method="post" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить эту стажировку?');">Удалить</button>
+                    </form>
                 </td>
             </tr>
             {% endfor %}
