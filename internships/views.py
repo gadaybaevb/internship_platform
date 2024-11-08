@@ -784,7 +784,7 @@ def weekly_report(request):
             '№': index,  # Нумерация
             'Employee': intern.full_name,
             'Department': department,  # Новый столбец "Department"
-            'Position': position.name if position.name else 'Нет позиции',
+            'Position': position.name if position else 'Нет позиции',
             'Hiring date': internship.start_date.strftime('%d.%m.%Y'),
             'Probation ending day': (internship.start_date + timezone.timedelta(days=90)).strftime('%d.%m.%Y'),
             'Supervisor': supervisor.full_name if supervisor else "No Supervisor",
