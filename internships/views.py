@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from .forms import MaterialForm, ReviewForm, AddInternForm
 from django.db.models import Q, Count
 from django.core.paginator import Paginator
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.contrib import messages
 from users.models import CustomUser
 from .utils import create_stage_progress
@@ -22,7 +24,6 @@ from django.contrib.auth.decorators import login_required
 import pandas as pd
 from django.http import HttpResponse
 from openpyxl import Workbook
-from openpyxl.styles import Font
 
 
 User = get_user_model()
