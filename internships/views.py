@@ -335,8 +335,6 @@ def intern_materials(request):
     # Рассчитываем дату завершения стажировки
     start_date = internship.start_date
     end_date = start_date + timedelta(days=intern.position.duration_days)
-
-    # Преобразуем end_date в datetime для корректного вычитания
     end_date_time = datetime.combine(end_date, datetime.min.time())
     end_date_time_aware = timezone.make_aware(end_date_time)
 
@@ -352,13 +350,15 @@ def intern_materials(request):
         material_progress = MaterialProgress.objects.filter(intern=intern, material=material).first()
 
         if material_progress:
-            status = material_progress.status  # Статус материала
+            status = material_progress.status
         else:
             status = 'not_started'
 
+        # Добавляем материал и его статус в список
         material_list.append({
             'material': material,
-            'status': status
+            'status': status,
+            'description': material.description,  # Явно передаем описание
         })
 
     total_materials = len(materials)
@@ -374,7 +374,7 @@ def intern_materials(request):
 
     # Тесты и результаты
     tests = Test.objects.filter(position=intern.position)
-    test_results = []  # Список для тестов и результатов
+    test_results = []
     for test in tests:
         result = TestResult.objects.filter(user=intern, test=test).first()
         if result:
@@ -395,9 +395,10 @@ def intern_materials(request):
         'progress_summary': progress_summary,
         'tests': test_results,
         'stage_completion': check_stage_completion,
-        'form': form,  # Передаем форму для отзыва
-        'internship': internship,  # Передаем саму стажировку
+        'form': form,
+        'internship': internship,
     })
+
 
 
 def check_deadlines(user):

@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .forms import CustomUserCreationForm, CustomUserEditForm
 from .models import CustomUser
+import random
+import string
 from django.core.paginator import Paginator
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.forms import SetPasswordForm
@@ -109,19 +111,37 @@ def user_edit(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
 
     if request.method == 'POST':
-        form = CustomUserEditForm(request.POST, instance=user)
-        password_form = SetPasswordForm(user, request.POST)  # Используем SetPasswordForm
+        # Проверяем, нажата ли кнопка "Сбросить пароль"
+        if 'reset_password' in request.POST:
+            print("Кнопка 'Сбросить пароль' нажата")  # Отладочное сообщение
 
-        if form.is_valid() and password_form.is_valid():
+            # Генерация случайного пароля
+            new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+            print("Новый пароль:", new_password)  # Отладочное сообщение
+
+            # Устанавливаем новый пароль
+            user.set_password(new_password)
+            user.save()
+            messages.success(request, f'Пароль успешно сброшен. Новый пароль: {new_password}')
+            print("Сообщение о сбросе пароля добавлено")  # Отладочное сообщение
+
+            # Перенаправление обратно на страницу редактирования пользователя
+            return redirect('user_edit', user_id=user_id)
+
+        # Обрабатываем изменения данных пользователя
+        form = CustomUserEditForm(request.POST, instance=user)
+        if form.is_valid():
+            print("Форма редактирования данных валидна")  # Отладочное сообщение
             form.save()
-            password_form.save()
-            messages.success(request, 'Данные пользователя и пароль успешно обновлены.')
+            messages.success(request, 'Данные пользователя успешно обновлены.')
             return redirect('user_list')
+        else:
+            print("Форма редактирования данных не валидна")  # Отладочное сообщение
     else:
         form = CustomUserEditForm(instance=user)
-        password_form = SetPasswordForm(user)  # Используем SetPasswordForm
+        print("GET-запрос: отображение формы редактирования")  # Отладочное сообщение
 
-    return render(request, 'user_edit.html', {'form': form, 'password_form': password_form, 'user': user})
+    return render(request, 'user_edit.html', {'form': form, 'user': user})
 
 
 @staff_member_required

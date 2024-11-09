@@ -3,6 +3,15 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Редактировать пользователя: {{ user.username }}</h2>
+    {% if messages %}
+        <div class="container mt-3">
+          {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}">
+                  {{ message }}
+              </div>
+          {% endfor %}
+        </div>
+    {% endif %}
 
     <!-- Форма редактирования данных пользователя -->
     <form method="post">
@@ -10,10 +19,13 @@
         <h4>Данные пользователя</h4>
         {{ form|crispy }}
 
-        <h4>Изменить пароль</h4>
-        {{ password_form|crispy }}
-
         <button type="submit" class="btn btn-primary mt-3">Сохранить изменения</button>
+    </form>
+    
+    <!-- Кнопка для сброса пароля -->
+    <form method="post" style="margin-top: 20px;">
+        {% csrf_token %}
+        <button type="submit" name="reset_password" class="btn btn-warning">Сбросить пароль</button>
     </form>
 </div>
 {% endblock %}

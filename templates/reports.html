@@ -50,19 +50,29 @@
 
 <!-- Дополнительные стили для эффектов и теней -->
 <style>
+    /* Базовые стили для кнопки */
     .report-button {
-        transition: transform 0.2s, box-shadow 0.2s;
+        background-color: red; /* Красный фон кнопки */
+        color: white; /* Белый цвет текста */
+        border: 2px solid red; /* Бордер цвета фона для создания эффекта */
+        transition: background-color 0.3s, color 0.3s, transform 0.2s, box-shadow 0.2s, border-radius 0.3s;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
+    /* Эффект при наведении */
     .report-button:hover {
-        transform: scale(1.05);  /* Легкое увеличение */
-        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);  /* Более глубокая тень */
+        background-color: white; /* Белый фон при наведении */
+        color: red; /* Красный цвет текста при наведении */
+        border-radius: 15px; /* Закругление углов при наведении */
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2); /* Глубокая тень */
+        border-color: red;
     }
 
+    /* Эффект нажатия */
     .report-button:active {
         transform: scale(1); /* Откат к исходному размеру при нажатии */
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Исходная тень */
     }
 </style>
+
 {% endblock %}

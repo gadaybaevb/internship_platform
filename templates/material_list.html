@@ -63,9 +63,8 @@
                 <td>{{ material.position.name }}</td>
                 <td>{{ material.stage }}</td>
                 <td>
-                    <a href="{% url 'material_edit' material.id %}" class="btn btn-warning btn-sm">Редактировать</a>
-                    <a href="{% url 'material_delete' material.id %}" class="btn btn-danger btn-sm"
-                       onclick="return confirm('Вы уверены, что хотите удалить этот материал?');">
+                    <a href="{% url 'material_edit' material.id %}" class="btn btn-warning btn-sm" style="margin: 5px;">Редактировать</a>
+                    <a href="{% url 'material_delete' material.id %}" class="btn btn-danger btn-sm">
                         Удалить
                     </a>
                 </td>

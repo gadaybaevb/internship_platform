@@ -11,12 +11,22 @@
                 <th>Этап</th>
                 <th>Статус</th>
                 <th>Пройдено</th>
+                <th>Файл</th>
             </tr>
         </thead>
         <tbody>
             {% for item in materials %}
             <tr>
-                <td>{{ item.material.title }}</td>
+                <td>
+                    <!-- Ссылка для открытия модального окна -->
+                    <a href="#"
+                       data-bs-toggle="modal"
+                       data-bs-target="#materialModal"
+                       data-title="{{ item.material.title }}"
+                       data-description="{{ item.material.description }}">
+                       {{ item.material.title }}
+                    </a>
+                </td>
                 <td>Этап {{ item.material.stage }}</td>
                 <td>
                     {% if item.status == 'completed' %}
@@ -37,56 +47,56 @@
                         Завершено
                     {% endif %}
                 </td>
+                <td>
+                    {% if item.material.file %}
+                        <a href="{{ item.material.file.url }}" target="_blank" class="btn btn-primary btn-sm">Скачать файл</a>
+                    {% else %}
+                        <span class="text-muted">Файл отсутствует</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <div class="mt-4">
-        <h4>Тесты:</h4>
-        <ul>
-            {% for test_data in tests %}
-            <li>
-                {% if test_data.is_completed %}
-                    <div class="alert alert-info">
-                        <strong>Тест "{{ test_data.test.title }}" пройден.</strong><br>
-                        Результат: {{ test_data.result.score }}%<br>
-                        Правильных ответов: {{ test_data.result.correct_answers_count }} из {{ test_data.result.total_questions_count }}<br>
-                        Завершено: {{ test_data.result.completed_at|date:"d.m.Y H:i" }}
-                    </div>
-                {% elif stage_completion.test_data.test.stage_number %}
-                    <a href="{% url 'test_intro' test_data.test.id %}" class="btn btn-primary">Пройти тест для этапа {{ test_data.test.stage_number }}</a>
-                {% else %}
-                    <span class="text-muted">Тест для этапа {{ test_data.test.stage_number }} недоступен. Пройдите все материалы этого этапа и дождитесь подтверждения ментора.</span>
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    <div class="mt-4">
-        <h4>Итоги:</h4>
-        <p>Пройдено материалов: {{ progress_summary.completed }} из {{ progress_summary.total }}</p>
-        <p>Осталось материалов: {{ progress_summary.remaining }}</p>
-        <p>Время до завершения стажировки: {{ progress_summary.time_left }} дней</p>
-    </div>
-
-    <div class="mt-4">
-        {% if internship.intern_feedback %}
-            <!-- Стилизованный блок с отзывом -->
-            <div class="alert alert-info">
-                <strong>Ваш отзыв:</strong><br>
-                {{ internship.intern_feedback }}
+    <!-- Модальное окно -->
+    <div class="modal fade" id="materialModal" tabindex="-1" aria-labelledby="materialModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="materialModalLabel">Название материала</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="materialDescription">Описание материала</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
             </div>
-        {% else %}
-            <h4>Оставьте отзыв о стажировке:</h4>
-            <form method="post">
-                {% csrf_token %}
-                {{ form.intern_feedback|as_crispy_field }}  <!-- Здесь отображаем форму -->
-                <button type="submit" class="btn btn-primary">Отправить отзыв</button>
-            </form>
-        {% endif %}
+        </div>
     </div>
 
 </div>
+
+<!-- Скрипт перенесен перед закрывающим тегом body -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const materialModal = document.getElementById('materialModal');
+        
+        materialModal.addEventListener('show.bs.modal', function (event) {
+            const link = event.relatedTarget;
+            const title = link.getAttribute('data-title');
+            const description = link.getAttribute('data-description');
+
+            const modalTitle = materialModal.querySelector('.modal-title');
+            const modalDescription = materialModal.querySelector('#materialDescription');
+
+            if (modalTitle && modalDescription) {
+                modalTitle.textContent = title || 'Название отсутствует';
+                modalDescription.textContent = description || 'Описание отсутствует';
+            }
+        });
+    });
+</script>
 {% endblock %}

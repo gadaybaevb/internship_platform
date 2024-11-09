@@ -1,10 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends 'base.html' %}
 
-</body>
-</html>
+{% block title %}Подтверждение удаления{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Удалить материал</h2>
+    <p>Вы уверены, что хотите удалить материал "{{ material.title }}"?</p>
+
+    <form method="post" action="{% url 'material_delete' material.id %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Удалить</button>
+        <a href="{% url 'material_list' %}" class="btn btn-secondary">Отмена</a>
+    </form>
+</div>
+{% endblock %}
