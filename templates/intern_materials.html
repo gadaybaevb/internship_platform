@@ -70,19 +70,20 @@
         </tbody>
     </table>
 
-    <!-- Кнопка для промежуточного теста -->
+   <!-- Кнопка для промежуточного теста -->
     {% if show_midterm_test_button %}
-        <a href="{% url 'take_test' midterm_test.id %}" class="btn btn-info mt-3">Пройти промежуточный тест</a>
+        <a href="{% url 'test_intro' midterm_test.id %}" class="btn btn-info mt-3">Пройти промежуточный тест</a>
     {% elif midterm_test_result %}
         <p><strong>Промежуточный тест завершён. Ваш результат: {{ midterm_test_result.score }} баллов</strong></p>
     {% endif %}
-
+    
     <!-- Кнопка для финального теста -->
     {% if show_final_test_button %}
-        <a href="{% url 'take_test' final_test.id %}" class="btn btn-warning mt-3">Пройти финальный тест</a>
+        <a href="{% url 'test_intro' final_test.id %}" class="btn btn-warning mt-3">Пройти финальный тест</a>
     {% elif final_test_result %}
         <p><strong>Финальный тест завершён. Ваш результат: {{ final_test_result.score }} баллов</strong></p>
     {% endif %}
+
 
     <!-- Форма отзыва после завершения стажировки -->
     {% if show_feedback_form %}

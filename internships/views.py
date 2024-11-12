@@ -339,6 +339,9 @@ def intern_materials(request):
     end_date = start_date + timedelta(days=intern.position.duration_days)
     end_date_time_aware = timezone.make_aware(datetime.combine(end_date, datetime.min.time()))
 
+    # Проверка завершения стажировки
+    is_internship_completed = timezone.now().date() > end_date_time_aware.date()
+
     # Оставшееся время в днях
     time_left = max((end_date_time_aware - timezone.now()).days, 0)
 
@@ -346,7 +349,6 @@ def intern_materials(request):
     materials = Material.objects.filter(position=intern.position).order_by('stage')
     material_list = []
     completed_materials_count = 0
-
     for material in materials:
         material_progress = MaterialProgress.objects.filter(intern=intern, material=material).first()
         status = material_progress.status if material_progress else 'not_started'
@@ -358,15 +360,15 @@ def intern_materials(request):
     stage_1_completed = StageProgress.objects.filter(intern=intern, stage=1, completed=True).exists()
     stage_2_completed = StageProgress.objects.filter(intern=intern, stage=2, completed=True).exists()
 
-    # Проверка, сданы ли промежуточный и финальный тесты, и получение баллов
+    # Проверка наличия промежуточного и финального тестов и их результатов
     midterm_test = Test.objects.filter(position=intern.position, stage_number=1).first()
     final_test = Test.objects.filter(position=intern.position, stage_number=2).first()
     midterm_test_result = TestResult.objects.filter(user=intern, test=midterm_test).first() if midterm_test else None
     final_test_result = TestResult.objects.filter(user=intern, test=final_test).first() if final_test else None
 
-    # Переменные для отображения кнопок тестов
-    show_midterm_test_button = stage_1_completed and midterm_test and not midterm_test_result
-    show_final_test_button = stage_2_completed and final_test and not final_test_result
+    # Определение, показывать ли кнопки тестов
+    show_midterm_test_button = (stage_1_completed or is_internship_completed) and midterm_test and not midterm_test_result
+    show_final_test_button = (stage_2_completed or is_internship_completed) and final_test and not final_test_result
 
     # Проверка завершения всех этапов, материалов и тестов для отображения формы отзыва
     show_feedback_form = internship.is_completed()
