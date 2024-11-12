@@ -346,6 +346,7 @@ def intern_materials(request):
     materials = Material.objects.filter(position=intern.position).order_by('stage')
     material_list = []
     completed_materials_count = 0
+
     for material in materials:
         material_progress = MaterialProgress.objects.filter(intern=intern, material=material).first()
         status = material_progress.status if material_progress else 'not_started'
