@@ -224,3 +224,13 @@ ul#sequence-list .list-group-item:hover {
     font-size: 0.9rem;
     border-radius: 5px;
 }
+/* Карточки для уведомлений */
+.card {
+    border-radius: 8px !important;
+    transition: box-shadow 0.2s ease !important;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
