@@ -4,6 +4,16 @@
 
 <div class="container mt-4">
     <h2>Ваш прогресс по стажировке</h2>
+    
+    <!-- Статистика материалов -->
+    <div class="alert alert-info">
+        <p><strong>Всего материалов:</strong> {{ progress_summary.total }}</p>
+        <p><strong>Пройдено материалов:</strong> {{ progress_summary.completed }}</p>
+        <p><strong>Осталось материалов:</strong> {{ progress_summary.remaining }}</p>
+        <p><strong>Оставшееся время:</strong> {{ progress_summary.time_left }} дней</p>
+    </div>
+
+    <!-- Таблица материалов -->
     <table class="table table-striped">
         <thead>
             <tr>
@@ -38,13 +48,13 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if item.status == 'not_started' %}
+                    {% if item.status == 'completed' %}
+                        Завершено
+                    {% else %}
                         <form method="post" action="{% url 'mark_material_completed' item.material.id %}">
                             {% csrf_token %}
                             <input type="checkbox" name="completed" onchange="this.form.submit();">
                         </form>
-                    {% else %}
-                        Завершено
                     {% endif %}
                 </td>
                 <td>
@@ -59,7 +69,31 @@
         </tbody>
     </table>
 
-    <!-- Модальное окно -->
+    <!-- Кнопка для промежуточного теста -->
+    {% if show_midterm_test_button %}
+        <a href="{% url 'take_test' midterm_test.id %}" class="btn btn-info mt-3">Пройти промежуточный тест</a>
+    {% elif midterm_test_result %}
+        <p><strong>Промежуточный тест завершён. Ваш результат: {{ midterm_test_result.score }} баллов</strong></p>
+    {% endif %}
+
+    <!-- Кнопка для финального теста -->
+    {% if show_final_test_button %}
+        <a href="{% url 'take_test' final_test.id %}" class="btn btn-warning mt-3">Пройти финальный тест</a>
+    {% elif final_test_result %}
+        <p><strong>Финальный тест завершён. Ваш результат: {{ final_test_result.score }} баллов</strong></p>
+    {% endif %}
+
+    <!-- Форма отзыва после завершения стажировки -->
+    {% if show_feedback_form %}
+        <h3>Отправить отзыв о стажировке</h3>
+        <form method="post">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <button type="submit" class="btn btn-success">Отправить отзыв</button>
+        </form>
+    {% endif %}
+
+    <!-- Модальное окно для материала -->
     <div class="modal fade" id="materialModal" tabindex="-1" aria-labelledby="materialModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -76,10 +110,9 @@
             </div>
         </div>
     </div>
-
 </div>
 
-<!-- Скрипт перенесен перед закрывающим тегом body -->
+<!-- Скрипт для заполнения модального окна динамическими данными -->
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         const materialModal = document.getElementById('materialModal');
@@ -99,4 +132,5 @@
         });
     });
 </script>
+
 {% endblock %}

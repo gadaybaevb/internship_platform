@@ -320,85 +320,80 @@ def intern_materials(request):
     intern = request.user
     internship = Internship.objects.filter(intern=intern).first()
 
+    # Обработка формы отзыва
     if request.method == 'POST':
         form = ReviewForm(request.POST, instance=internship)
         if form.is_valid():
             form.save()
             messages.success(request, 'Ваш отзыв был отправлен.')
             return redirect('intern_materials')
+    else:
+        form = ReviewForm(instance=internship)
 
-    form = ReviewForm(instance=internship)
-
+    # Если стажировка не найдена, вернем пустые данные
     if not internship:
         return render(request, 'intern_materials.html', {'materials': [], 'progress_summary': {}})
 
-    # Рассчитываем дату завершения стажировки
+    # Дата завершения стажировки
     start_date = internship.start_date
     end_date = start_date + timedelta(days=intern.position.duration_days)
-    end_date_time = datetime.combine(end_date, datetime.min.time())
-    end_date_time_aware = timezone.make_aware(end_date_time)
+    end_date_time_aware = timezone.make_aware(datetime.combine(end_date, datetime.min.time()))
 
-    # Рассчитываем оставшееся время в днях
-    time_left = (end_date_time_aware - timezone.now()).days if end_date_time_aware > timezone.now() else 0
+    # Оставшееся время в днях
+    time_left = max((end_date_time_aware - timezone.now()).days, 0)
 
-    # Прогресс по материалам
+    # Список всех материалов по этапам
     materials = Material.objects.filter(position=intern.position).order_by('stage')
-
     material_list = []
+    completed_materials_count = 0
     for material in materials:
-        # Проверяем прогресс по материалам для каждого стажера
         material_progress = MaterialProgress.objects.filter(intern=intern, material=material).first()
+        status = material_progress.status if material_progress else 'not_started'
+        if status == 'completed':
+            completed_materials_count += 1
+        material_list.append({'material': material, 'status': status, 'description': material.description})
 
-        if material_progress:
-            status = material_progress.status
-        else:
-            status = 'not_started'
+    # Прогресс по этапам
+    stage_1_completed = StageProgress.objects.filter(intern=intern, stage=1, completed=True).exists()
+    stage_2_completed = StageProgress.objects.filter(intern=intern, stage=2, completed=True).exists()
 
-        # Добавляем материал и его статус в список
-        material_list.append({
-            'material': material,
-            'status': status,
-            'description': material.description,  # Явно передаем описание
-        })
+    # Проверка, сданы ли промежуточный и финальный тесты, и получение баллов
+    midterm_test = Test.objects.filter(position=intern.position, stage_number=1).first()
+    final_test = Test.objects.filter(position=intern.position, stage_number=2).first()
+    midterm_test_result = TestResult.objects.filter(user=intern, test=midterm_test).first() if midterm_test else None
+    final_test_result = TestResult.objects.filter(user=intern, test=final_test).first() if final_test else None
 
+    # Переменные для отображения кнопок тестов
+    show_midterm_test_button = stage_1_completed and midterm_test and not midterm_test_result
+    show_final_test_button = stage_2_completed and final_test and not final_test_result
+
+    # Проверка завершения всех этапов, материалов и тестов для отображения формы отзыва
+    show_feedback_form = internship.is_completed()
+
+    # Подготовка данных о прогрессе
     total_materials = len(materials)
-    completed_materials = MaterialProgress.objects.filter(intern=intern, completed=True).count()
-    remaining_materials = total_materials - completed_materials
-
     progress_summary = {
         'total': total_materials,
-        'completed': completed_materials,
-        'remaining': remaining_materials,
+        'completed': completed_materials_count,
+        'remaining': total_materials - completed_materials_count,
         'time_left': time_left,
     }
 
-    # Тесты и результаты
-    tests = Test.objects.filter(position=intern.position)
-    test_results = []
-    for test in tests:
-        result = TestResult.objects.filter(user=intern, test=test).first()
-        if result:
-            test_results.append({
-                'test': test,
-                'result': result,
-                'is_completed': True
-            })
-        else:
-            test_results.append({
-                'test': test,
-                'result': None,
-                'is_completed': False
-            })
-
+    # Передаем все данные в шаблон
     return render(request, 'intern_materials.html', {
         'materials': material_list,
         'progress_summary': progress_summary,
-        'tests': test_results,
-        'stage_completion': check_stage_completion,
         'form': form,
-        'internship': internship,
+        'stage_1_completed': stage_1_completed,
+        'stage_2_completed': stage_2_completed,
+        'show_midterm_test_button': show_midterm_test_button,
+        'show_final_test_button': show_final_test_button,
+        'midterm_test': midterm_test,
+        'final_test': final_test,
+        'midterm_test_result': midterm_test_result,
+        'final_test_result': final_test_result,
+        'show_feedback_form': show_feedback_form,
     })
-
 
 
 def check_deadlines(user):
