@@ -408,8 +408,6 @@ def intern_materials(request):
     })
 
 
-
-
 def check_deadlines(user):
     # Получаем все активные этапы стажировки для стажера
     stages_in_progress = StageProgress.objects.filter(intern=user, completed=False)
@@ -521,7 +519,7 @@ def mentor_view_intern_materials(request, intern_id):
     })
 
 
-@user_passes_test(lambda u: u.is_authenticated)
+# @user_passes_test(lambda u: u.is_authenticated)
 def confirm_material_completion(request, progress_id):
     # Получаем запись о прогрессе по материалу
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
