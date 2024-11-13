@@ -1,11 +1,10 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 {% block content %}
-
 <div class="container mt-4">
-    <h2>Ваш прогресс по стажировке</h2>
-    
-    <!-- Статистика материалов -->
+    <h2>Материалы стажера: {{ intern.full_name }}</h2>
+
+    <!-- Сводка по прогрессу -->
     <div class="alert alert-info">
         <p><strong>Всего материалов:</strong> {{ progress_summary.total }}</p>
         <p><strong>Пройдено материалов:</strong> {{ progress_summary.completed }}</p>
@@ -13,56 +12,36 @@
         <p><strong>Оставшееся время:</strong> {{ progress_summary.time_left }} дней</p>
     </div>
 
-    <!-- Таблица материалов -->
+    <h4>Незавершенные материалы</h4>
     <table class="table table-striped">
         <thead>
             <tr>
                 <th>Название материала</th>
                 <th>Этап</th>
                 <th>Статус</th>
-                <th>Пройдено</th>
-                <th>Файл</th>
+                <th>Действие</th>
             </tr>
         </thead>
         <tbody>
-            {% for item in materials %}
+            {% for item in pending_materials %}
             <tr>
-                <td>
-                    
-                    <!-- Ссылка для открытия модального окна -->
-                    <a href="#"
-                       data-bs-toggle="modal"
-                       data-bs-target="#materialModal"
-                       data-title="{{ item.material.title }}"
-                       data-description="{{ item.material.description }}">
-                       {{ item.material.title }}
-                    </a>
-                </td>
+                <td>{{ item.material.title }}</td>
                 <td>Этап {{ item.material.stage }}</td>
                 <td>
-                    {% if item.status == 'completed' %}
+                    {% if item.status == 'Завершён' %}
                         <span class="text-success">Завершён</span>
-                    {% elif item.status == 'pending' %}
-                        <span class="text-warning">Ожидание подтверждения ментора</span>
+                    {% elif item.status == 'Ожидание' %}
+                        <span class="text-warning">Ожидание подтверждения</span>
                     {% else %}
                         <span class="text-danger">Не завершён</span>
                     {% endif %}
                 </td>
                 <td>
-                    {% if item.status == 'completed' %}
-                        Завершено
-                    {% else %}
-                        <form method="post" action="{% url 'mark_material_completed' item.material.id %}">
+                    {% if item.status == 'Ожидание' %}
+                        <form method="post" action="{% url 'confirm_material_completion' item.progress_id %}">
                             {% csrf_token %}
-                            <input type="checkbox" name="completed" onchange="this.form.submit();">
+                            <button type="submit" class="btn btn-success">Подтвердить</button>
                         </form>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if item.material.file %}
-                        <a href="{{ item.material.file.url }}" target="_blank" class="btn btn-primary btn-sm">Скачать файл</a>
-                    {% else %}
-                        <span class="text-muted">Файл отсутствует</span>
                     {% endif %}
                 </td>
             </tr>
@@ -70,13 +49,46 @@
         </tbody>
     </table>
 
-   <!-- Кнопка для промежуточного теста -->
+    <!-- Аккордеон для завершенных материалов -->
+    <div class="accordion mt-4" id="completedMaterialsAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                    Завершенные материалы
+                </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#completedMaterialsAccordion">
+                <div class="accordion-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Название материала</th>
+                                <th>Этап</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in completed_materials %}
+                            <tr>
+                                <td>{{ item.material.title }}</td>
+                                <td>Этап {{ item.material.stage }}</td>
+                                <td><span class="text-success">{{ item.status }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Кнопка для промежуточного теста -->
     {% if show_midterm_test_button %}
         <a href="{% url 'test_intro' midterm_test.id %}" class="btn btn-info mt-3">Пройти промежуточный тест</a>
     {% elif midterm_test_result %}
         <p><strong>Промежуточный тест завершён. Ваш результат: {{ midterm_test_result.score }} баллов</strong></p>
     {% endif %}
-    
+
     <!-- Кнопка для финального теста -->
     {% if show_final_test_button %}
         <a href="{% url 'test_intro' final_test.id %}" class="btn btn-warning mt-3">Пройти финальный тест</a>
@@ -84,55 +96,19 @@
         <p><strong>Финальный тест завершён. Ваш результат: {{ final_test_result.score }} баллов</strong></p>
     {% endif %}
 
-
-    <!-- Форма отзыва после завершения стажировки -->
-    {% if show_feedback_form %}
-        <h3>Отправить отзыв о стажировке</h3>
+    <!-- Поле для отзыва стажера или сам отзыв -->
+    {% if intern_feedback %}
+        <div class="mt-4">
+            <h4>Отзыв стажера:</h4>
+            <p>{{ intern_feedback }}</p>
+        </div>
+    {% elif show_feedback_form %}
+        <h3>Оставьте отзыв о стажировке</h3>
         <form method="post">
             {% csrf_token %}
-            {{ form|crispy }}
+            {{ form.intern_feedback|as_crispy_field }}
             <button type="submit" class="btn btn-success">Отправить отзыв</button>
         </form>
     {% endif %}
-
-    <!-- Модальное окно для материала -->
-    <div class="modal fade" id="materialModal" tabindex="-1" aria-labelledby="materialModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="materialModalLabel">Название материала</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p id="materialDescription">Описание материала</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
-
-<!-- Скрипт для заполнения модального окна динамическими данными -->
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const materialModal = document.getElementById('materialModal');
-        
-        materialModal.addEventListener('show.bs.modal', function (event) {
-            const link = event.relatedTarget;
-            const title = link.getAttribute('data-title');
-            const description = link.getAttribute('data-description');
-
-            const modalTitle = materialModal.querySelector('.modal-title');
-            const modalDescription = materialModal.querySelector('#materialDescription');
-
-            if (modalTitle && modalDescription) {
-                modalTitle.textContent = title || 'Название отсутствует';
-                modalDescription.textContent = description || 'Описание отсутствует';
-            }
-        });
-    });
-</script>
-    
 {% endblock %}

@@ -76,7 +76,7 @@
                         {% if internship.is_internship_completed %}
                             {% if internship.mentor_review_exists %}
                                 <span class="text-success">Отзыв оставлен</span>
-                            {% else %}
+                            {% elif internship.intern_feedback_exists %}
                                 <button class="btn btn-warning btn-sm show-review-form" data-internship-id="{{ internship.id }}">Оставить отзыв</button>
                             {% endif %}
                         {% else %}
@@ -94,11 +94,59 @@
             </tbody>
         </table>
 
-        <!-- Пагинация и другие элементы... -->
+        <!-- Пагинация -->
+        <div class="mt-3">
+            {% if page_obj.has_previous %}
+                <a href="?page=1" class="btn btn-outline-primary btn-sm">Первая</a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline-primary btn-sm">Назад</a>
+            {% endif %}
+
+            <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline-primary btn-sm">Вперед</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-outline-primary btn-sm">Последняя</a>
+            {% endif %}
+        </div>
     {% else %}
         <p>Нет данных для отображения.</p>
     {% endif %}
 </div>
 
-<!-- Скрипт для формы отзыва -->
+<!-- Модальное окно для добавления отзыва -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reviewModalLabel">Добавить отзыв для стажера</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <form method="post" action="{% url 'dashboard' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" name="internship_id" id="internshipIdInput">
+                    {{ form.mentor_feedback|as_crispy_field }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="submit" class="btn btn-primary">Сохранить отзыв</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Скрипт для открытия модального окна -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const reviewButtons = document.querySelectorAll('.show-review-form');
+        reviewButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const internshipId = button.getAttribute('data-internship-id');
+                document.getElementById('internshipIdInput').value = internshipId;
+                new bootstrap.Modal(document.getElementById('reviewModal')).show();
+            });
+        });
+    });
+</script>
 {% endblock %}
