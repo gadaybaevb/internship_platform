@@ -24,7 +24,7 @@ from django.contrib.auth.decorators import login_required
 import pandas as pd
 from django.http import HttpResponse
 from openpyxl import Workbook
-
+from django.contrib.auth.decorators import user_passes_test
 
 User = get_user_model()
 
@@ -340,25 +340,17 @@ def intern_materials(request):
 
     for material in materials:
         material_progress = MaterialProgress.objects.filter(intern=intern, material=material).first()
-        if material_progress and material_progress.completed:
-            completed_materials.append({'material': material, 'status': 'Завершён'})
+        # Проверяем статус и добавляем материал в нужный список
+        if material_progress:
+            if material_progress.completed:
+                completed_materials.append({'material': material, 'status': 'Завершён'})
+            elif material_progress.status == 'pending':
+                pending_materials.append({'material': material, 'status': 'Ожидание', 'progress_id': material_progress.id})
+            else:
+                pending_materials.append({'material': material, 'status': 'Не завершён'})
         else:
-            status = material_progress.status if material_progress else 'Не завершён'
-            pending_materials.append({
-                'material': material,
-                'status': status,
-                'progress_id': material_progress.id if material_progress else None,
-            })
-
-    # Прогресс по материалам
-    total_materials = len(materials)
-    completed_materials_count = len(completed_materials)
-    progress_summary = {
-        'total': total_materials,
-        'completed': completed_materials_count,
-        'remaining': total_materials - completed_materials_count,
-        'time_left': time_left,
-    }
+            # Если прогресса еще нет, материал не завершен
+            pending_materials.append({'material': material, 'status': 'Не завершён'})
 
     # Подсчет завершенных и оставшихся материалов для каждого этапа
     stage_1_materials = Material.objects.filter(position=intern.position, stage=1)
@@ -392,7 +384,12 @@ def intern_materials(request):
     return render(request, 'intern_materials.html', {
         'pending_materials': pending_materials,
         'completed_materials': completed_materials,
-        'progress_summary': progress_summary,
+        'progress_summary': {
+            'total': len(materials),
+            'completed': len(completed_materials),
+            'remaining': len(materials) - len(completed_materials),
+            'time_left': time_left,
+        },
         'form': form,
         'intern': intern,
         'internship': internship,
@@ -406,10 +403,10 @@ def intern_materials(request):
         'final_test_result': final_test_result,
         'show_feedback_form': show_feedback_form,
         'intern_feedback': intern_feedback,
-        # Новые данные для отображения оставшихся материалов
         'stage_1_remaining': stage_1_remaining,
         'stage_2_remaining': stage_2_remaining,
     })
+
 
 
 def check_deadlines(user):
@@ -523,7 +520,7 @@ def mentor_view_intern_materials(request, intern_id):
     })
 
 
-@login_required
+@user_passes_test(lambda u: u.is_authenticated)
 def confirm_material_completion(request, progress_id):
     # Получаем запись о прогрессе по материалу
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
