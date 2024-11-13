@@ -30,17 +30,24 @@ def take_test(request, test_id):
         messages.info(request, 'Вы уже завершили этот тест.')
         return redirect('test_results', test_id=test.id)
 
-    if 'test_start_time' not in request.session:
-        request.session['test_start_time'] = timezone.now().isoformat()
-        time_left = test.time_limit * 60
+    # Считываем оставшееся время из POST-запроса (если отправлено)
+    time_left = request.POST.get('time_left', None)
+    if time_left is not None:
+        time_left = int(time_left)
     else:
-        test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
-        time_spent = timezone.now() - test_start_time
-        time_left = request.session.get('time_left', test.time_limit * 60) - time_spent.total_seconds()
-        if time_left <= 0:
-            messages.error(request, "Время для теста истекло.")
-            return redirect('test_results', test_id=test.id)
+        # Инициализируем время на стороне сервера, если еще не установлено
+        if 'test_start_time' not in request.session:
+            request.session['test_start_time'] = timezone.now().isoformat()
+            time_left = test.time_limit * 60
+        else:
+            test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
+            time_spent = timezone.now() - test_start_time
+            time_left = request.session.get('time_left', test.time_limit * 60) - time_spent.total_seconds()
+            if time_left <= 0:
+                messages.error(request, "Время для теста истекло.")
+                return redirect('test_results', test_id=test.id)
 
+    # Обновляем оставшееся время в сессии
     request.session['time_left'] = time_left
     current_question_number = request.session.get('current_question_number', 1)
     current_question = questions[current_question_number - 1]
@@ -56,18 +63,38 @@ def take_test(request, test_id):
         }
         random.shuffle(initial_pairs["left"])
         random.shuffle(initial_pairs["right"])
-
         current_question.initial_pairs = initial_pairs
     else:
         initial_pairs = None
 
     if request.method == 'POST':
         user_answers = request.session.get('user_answers', {})
+
         if current_question.question_type == 'multiple':
             user_answer = request.POST.getlist(f'question_{current_question.id}_answers')
+            if not user_answer:
+                messages.error(request, 'Пожалуйста, выберите хотя бы один вариант ответа.')
+                return redirect('take_test', test_id=test.id)
+            user_answers[str(current_question.id)] = user_answer
+
+        elif current_question.question_type == 'single':
+            user_answer = request.POST.get(f'question_{current_question.id}')
+            if not user_answer:
+                messages.error(request, 'Пожалуйста, выберите вариант ответа.')
+                return redirect('take_test', test_id=test.id)
+            user_answers[str(current_question.id)] = user_answer
+
+        elif current_question.question_type == 'true_false':
+            user_answer = request.POST.get(f'question_{current_question.id}')
+            if not user_answer:
+                messages.error(request, 'Пожалуйста, выберите вариант ответа.')
+                return redirect('take_test', test_id=test.id)
+            user_answers[str(current_question.id)] = user_answer
+
         elif current_question.question_type == 'sequence':
             user_answer = request.POST.get(f'question_{current_question.id}_sequence')
             user_answers[str(current_question.id)] = user_answer
+
         elif current_question.question_type == 'match':
             user_answer = request.POST.get(f"question_{current_question.id}_matches")
             if not user_answer:
@@ -83,6 +110,7 @@ def take_test(request, test_id):
             user_answers[str(current_question.id)] = user_answer
 
         request.session['user_answers'] = user_answers
+
         if current_question_number < len(questions):
             request.session['current_question_number'] = current_question_number + 1
             return redirect('take_test', test_id=test.id)
@@ -104,9 +132,11 @@ def take_test(request, test_id):
         'test': test,
         'current_question': current_question,
         'current_question_number': current_question_number,
+        'total_questions': len(questions),
         'is_last_question': current_question_number == len(questions),
         'time_left': int(time_left),
-        'initial_pairs': initial_pairs
+        'initial_pairs': initial_pairs,
+        'answered_questions': len(request.session.get('user_answers', {}))
     })
 
 
@@ -348,7 +378,6 @@ def evaluate_test(test, user_answers, request):
     test_result.save()
 
     return test_result.score
-
 
 
 def evaluate_single(question, user_answer):

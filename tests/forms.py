@@ -27,13 +27,6 @@ class QuestionForm(forms.ModelForm):
         }
 
 
-# class AnswerFormSet(forms.BaseInlineFormSet):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         for i in range(4):  # Делаем 4 формы для 4 ответов
-#             self.forms.append(AnswerForm())
-
-
 AnswerFormSet = inlineformset_factory(Question, Answer, fields=('text', 'is_correct', 'sequence_order', 'match_pair'),
                                       labels={
                                             'match_pair': 'Соответствие',
