@@ -30,23 +30,23 @@
                 <td>{{ item.material.title }}</td>
                 <td>Этап {{ item.material.stage }}</td>
                 <td>
-                    {% if item.status == 'Завершён' %}
+                    {% if item.status == 'completed' %}
                         <span class="text-success">Завершён</span>
-                    {% elif item.status == 'Ожидание' %}
+                    {% elif item.status == 'pending' %}
                         <span class="text-warning">Ожидание подтверждения</span>
                     {% else %}
                         <span class="text-danger">Не завершён</span>
                     {% endif %}
                 </td>
                 <td>
-                    {% if item.status == 'Не завершён' %}
-                        <!-- Кнопка для отметки материала как пройденного -->
+                    {% if item.status == 'not_started' %}
+                        <!-- Кнопка "Прошел" для отметки стажером -->
                         <form method="post" action="{% url 'mark_material_completed' item.material.id %}" class="d-inline">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-primary btn-sm">Прошел</button>
                         </form>
-                    {% elif item.status == 'Ожидание' %}
-                        <!-- Кнопка для подтверждения ментора, что материал завершен -->
+                    {% elif item.status == 'pending' %}
+                        <!-- Кнопка "Подтвердить" для ментора, если статус "Ожидание подтверждения" -->
                         <form method="post" action="{% url 'confirm_material_completion' item.progress_id %}" class="d-inline">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-success btn-sm">Подтвердить</button>
