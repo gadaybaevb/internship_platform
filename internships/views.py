@@ -529,7 +529,7 @@ def confirm_material_completion(request, progress_id):
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
 
     # Ментор может подтвердить материал
-    if request.method == 'POST':
+    if request.user.role == 'mentor' and request.method == 'POST':
         material_progress.status = 'completed'  # Обновляем статус на завершённый
         material_progress.completed = True
         material_progress.confirmation_date = timezone.now() + timedelta(hours=5)  # Устанавливаем дату подтверждения со смещением на 5 часов
