@@ -27,7 +27,11 @@
         <tbody>
             {% for item in pending_materials %}
             <tr>
-                <td>{{ item.material.title }}</td>
+                <td>
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#materialModal" data-title="{{ item.material.title }}" data-description="{{ item.material.description }}">
+                        {{ item.material.title }}
+                    </a>
+                </td>
                 <td>Этап {{ item.material.stage }}</td>
                 <td>
                     {% if item.status == 'completed' %}
@@ -40,17 +44,14 @@
                 </td>
                 <td>
                     {% if item.status == 'not_started' %}
-                        <!-- Кнопка "Прошел" для отметки стажером -->
+                        <!-- Кнопка "Прошел" для стажера -->
                         <form method="post" action="{% url 'mark_material_completed' item.material.id %}" class="d-inline">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-primary btn-sm">Прошел</button>
                         </form>
                     {% elif item.status == 'pending' %}
-                        <!-- Кнопка "Подтвердить" для ментора, если статус "Ожидание подтверждения" -->
-                        <form method="post" action="{% url 'confirm_material_completion' item.progress_id %}" class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-success btn-sm">Подтвердить</button>
-                        </form>
+                        <!-- Только отображение статуса "Ожидание подтверждения" для стажера -->
+                        <span class="text-muted">Ожидание подтверждения</span>
                     {% endif %}
                 </td>
             </tr>
@@ -79,7 +80,11 @@
                         <tbody>
                             {% for item in completed_materials %}
                             <tr>
-                                <td>{{ item.material.title }}</td>
+                                <td>
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#materialModal" data-title="{{ item.material.title }}" data-description="{{ item.material.description }}">
+                                        {{ item.material.title }}
+                                    </a>
+                                </td>
                                 <td>Этап {{ item.material.stage }}</td>
                                 <td><span class="text-success">{{ item.status }}</span></td>
                             </tr>
