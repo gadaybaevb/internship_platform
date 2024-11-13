@@ -343,14 +343,14 @@ def intern_materials(request):
         # Проверяем статус и добавляем материал в нужный список
         if material_progress:
             if material_progress.completed:
-                completed_materials.append({'material': material, 'status': 'Завершён'})
+                completed_materials.append({'material': material, 'status': 'completed'})
             elif material_progress.status == 'pending':
-                pending_materials.append({'material': material, 'status': 'Ожидание', 'progress_id': material_progress.id})
+                pending_materials.append({'material': material, 'status': 'pending', 'progress_id': material_progress.id})
             else:
-                pending_materials.append({'material': material, 'status': 'Не завершён'})
+                pending_materials.append({'material': material, 'status': 'not_started'})
         else:
-            # Если прогресса еще нет, материал не завершен
-            pending_materials.append({'material': material, 'status': 'Не завершён'})
+            # Если прогресса еще нет, материал не завершен и статус по умолчанию "not_started"
+            pending_materials.append({'material': material, 'status': 'not_started'})
 
     # Подсчет завершенных и оставшихся материалов для каждого этапа
     stage_1_materials = Material.objects.filter(position=intern.position, stage=1)
@@ -406,6 +406,7 @@ def intern_materials(request):
         'stage_1_remaining': stage_1_remaining,
         'stage_2_remaining': stage_2_remaining,
     })
+
 
 
 
