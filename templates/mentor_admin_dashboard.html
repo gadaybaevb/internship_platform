@@ -125,7 +125,7 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <input type="hidden" name="internship_id" id="internshipIdInput">
-                    {{ form.mentor_feedback|as_crispy_field }}
+                    {{ form.mentor_feedback|crispy }}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
