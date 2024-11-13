@@ -4,7 +4,7 @@ from datetime import date
 from .models import Material, Position, Internship, StageProgress, MaterialProgress
 from departments.models import Department
 from django.contrib.auth import get_user_model
-from .forms import MaterialForm, ReviewForm, AddInternForm
+from .forms import MaterialForm, ReviewForm, AddInternForm, MentorReviewForm
 from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from openpyxl.utils import get_column_letter
@@ -240,59 +240,48 @@ def dashboard(request):
     form = None  # Инициализация переменной `form`
 
     if user.role == 'admin':
-        # Администратор видит всех стажеров и их прогресс
         internships = Internship.objects.select_related('intern', 'mentor', 'position').all()
     elif user.role == 'mentor':
-        # Ментор видит только своих стажеров
         internships = Internship.objects.select_related('intern', 'position').filter(mentor=user)
 
         for internship in internships:
-            # Для каждого стажера добавляем количество материалов, ожидающих подтверждения
             pending_materials_count = MaterialProgress.objects.filter(
                 intern=internship.intern,
                 status='pending'
             ).count()
             internship.pending_materials_count = pending_materials_count
-
-            # Проверяем, оставил ли стажер отзыв и нужен ли отзыв от ментора
             internship.mentor_review_exists = bool(internship.mentor_feedback)
             internship.intern_feedback_exists = bool(internship.intern_feedback)
             internship.is_internship_completed = internship.is_completed()
 
-        # Обработка формы отзыва
+        # Обработка формы отзыва только для отзыва ментора
         if request.method == 'POST' and 'internship_id' in request.POST:
             internship_id = request.POST.get('internship_id')
             internship = get_object_or_404(Internship, id=internship_id)
-            form = ReviewForm(request.POST, instance=internship)
+            form = MentorReviewForm(request.POST, instance=internship)  # Используем форму только для отзыва ментора
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Ваш отзыв был добавлен.')
                 return redirect('dashboard')
 
-        form = ReviewForm()  # Пустая форма для добавления отзыва
+        form = MentorReviewForm()  # Пустая форма только для отзыва ментора
 
     else:
-        # Стажер видит только свой прогресс
         stage_progress = StageProgress.objects.filter(intern=user).order_by('stage')
-
-        # Проверяем наличие стажировки у стажера
         internship = Internship.objects.filter(intern=user).first()
         if not internship:
             messages.error(request, "У вас нет активной стажировки. Пожалуйста, свяжитесь с администратором.")
             return render(request, 'intern_dashboard.html', {'stage_progress': stage_progress})
-
         return render(request, 'intern_dashboard.html', {'stage_progress': stage_progress})
 
-    # Добавляем пагинацию по 10 записей на странице
-    paginator = Paginator(internships, 10)  # 10 записей на странице
+    paginator = Paginator(internships, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Для администратора и ментора отображаем стажеров и их прогресс с пагинацией
     return render(request, 'mentor_admin_dashboard.html', {
         'page_obj': page_obj,
         'role': user.role,
-        'form': form,  # Передаем форму для отзыва
+        'form': form,
     })
 
 
@@ -333,7 +322,7 @@ def intern_materials(request):
             return redirect('intern_materials')
     else:
         form = ReviewForm(instance=internship)
-        form.fields.pop('mentor_feedback')  # Убираем поле отзыва ментора
+        # form.fields.pop('mentor_feedback')  # Убираем поле отзыва ментора
 
     # Если стажировка не найдена, возвращаем пустые данные
     if not internship:

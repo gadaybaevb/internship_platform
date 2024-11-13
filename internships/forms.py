@@ -12,7 +12,7 @@ class MaterialForm(forms.ModelForm):
 class ReviewForm(forms.ModelForm):
     class Meta:
         model = Internship
-        fields = ['intern_feedback', 'mentor_feedback']
+        fields = ['intern_feedback']
 
 
 class AddInternForm(forms.ModelForm):
@@ -41,3 +41,9 @@ class AddInternForm(forms.ModelForm):
         # Установка отображения full_name в выпадающем списке
         self.fields['mentor'].label_from_instance = lambda obj: obj.full_name
         self.fields['intern'].label_from_instance = lambda obj: obj.full_name
+
+
+class MentorReviewForm(forms.ModelForm):
+    class Meta:
+        model = Internship
+        fields = ['mentor_feedback']  # Только отзыв ментора
