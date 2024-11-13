@@ -322,7 +322,6 @@ def intern_materials(request):
             return redirect('intern_materials')
     else:
         form = ReviewForm(instance=internship)
-        # form.fields.pop('mentor_feedback')  # Убираем поле отзыва ментора
 
     # Если стажировка не найдена, возвращаем пустые данные
     if not internship:
@@ -361,9 +360,20 @@ def intern_materials(request):
         'time_left': time_left,
     }
 
-    # Проверка завершения этапов и отображения тестов
-    stage_1_completed = completed_materials_count >= len(Material.objects.filter(position=intern.position, stage=1))
-    stage_2_completed = completed_materials_count >= len(Material.objects.filter(position=intern.position, stage=2))
+    # Подсчет завершенных и оставшихся материалов для каждого этапа
+    stage_1_materials = Material.objects.filter(position=intern.position, stage=1)
+    stage_1_materials_count = stage_1_materials.count()
+    completed_stage_1_count = MaterialProgress.objects.filter(intern=intern, material__in=stage_1_materials, completed=True).count()
+    stage_1_remaining = stage_1_materials_count - completed_stage_1_count
+
+    stage_2_materials = Material.objects.filter(position=intern.position, stage=2)
+    stage_2_materials_count = stage_2_materials.count()
+    completed_stage_2_count = MaterialProgress.objects.filter(intern=intern, material__in=stage_2_materials, completed=True).count()
+    stage_2_remaining = stage_2_materials_count - completed_stage_2_count
+
+    # Проверка завершения всех материалов для каждого этапа
+    stage_1_completed = completed_stage_1_count == stage_1_materials_count
+    stage_2_completed = completed_stage_2_count == stage_2_materials_count
 
     # Получаем промежуточный и финальный тесты и их результаты
     midterm_test = Test.objects.filter(position=intern.position, stage_number=1).first()
@@ -394,8 +404,11 @@ def intern_materials(request):
         'final_test': final_test,
         'midterm_test_result': midterm_test_result,
         'final_test_result': final_test_result,
-        'show_feedback_form': show_feedback_form,  # Условие для показа формы отзыва
-        'intern_feedback': intern_feedback,  # Передаем отзыв для отображения
+        'show_feedback_form': show_feedback_form,
+        'intern_feedback': intern_feedback,
+        # Новые данные для отображения оставшихся материалов
+        'stage_1_remaining': stage_1_remaining,
+        'stage_2_remaining': stage_2_remaining,
     })
 
 
