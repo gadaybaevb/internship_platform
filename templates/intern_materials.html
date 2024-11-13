@@ -27,16 +27,7 @@
         <tbody>
             {% for item in pending_materials %}
             <tr>
-                <td>
-                    <!-- Ссылка для открытия модального окна -->
-                    <a href="#"
-                       data-bs-toggle="modal"
-                       data-bs-target="#materialModal"
-                       data-title="{{ item.material.title }}"
-                       data-description="{{ item.material.description }}">
-                       {{ item.material.title }}
-                    </a>
-                </td>
+                <td>{{ item.material.title }}</td>
                 <td>Этап {{ item.material.stage }}</td>
                 <td>
                     {% if item.status == 'Завершён' %}
@@ -48,10 +39,17 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if item.status == 'Ожидание' %}
-                        <form method="post" action="{% url 'confirm_material_completion' item.progress_id %}">
+                    {% if item.status == 'Не завершён' %}
+                        <!-- Кнопка для отметки материала как пройденного -->
+                        <form method="post" action="{% url 'mark_material_completed' item.material.id %}" class="d-inline">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-success">Подтвердить</button>
+                            <button type="submit" class="btn btn-primary btn-sm">Прошел</button>
+                        </form>
+                    {% elif item.status == 'Ожидание' %}
+                        <!-- Кнопка для подтверждения ментора, что материал завершен -->
+                        <form method="post" action="{% url 'confirm_material_completion' item.progress_id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-sm">Подтвердить</button>
                         </form>
                     {% endif %}
                 </td>
@@ -61,7 +59,7 @@
     </table>
 
     <!-- Аккордеон для завершенных материалов -->
-    <div class="accordion mt-4" id="completedMaterialsAccordion" style="margin-bottom: 24px;">
+    <div class="accordion mt-4" id="completedMaterialsAccordion">
         <div class="accordion-item">
             <h2 class="accordion-header" id="headingOne">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
@@ -81,15 +79,7 @@
                         <tbody>
                             {% for item in completed_materials %}
                             <tr>
-                                <td>
-                                    <a href="#"
-                                       data-bs-toggle="modal"
-                                       data-bs-target="#materialModal"
-                                       data-title="{{ item.material.title }}"
-                                       data-description="{{ item.material.description }}">
-                                       {{ item.material.title }}
-                                    </a>
-                                </td>
+                                <td>{{ item.material.title }}</td>
                                 <td>Этап {{ item.material.stage }}</td>
                                 <td><span class="text-success">{{ item.status }}</span></td>
                             </tr>
@@ -100,35 +90,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Кнопка для прохождения промежуточного теста -->
-    {% if show_midterm_test_button %}
-        <a href="{% url 'test_intro' midterm_test.id %}" class="btn btn-info mt-3">Пройти промежуточный тест</a>
-    {% elif midterm_test_result %}
-        <p><strong>Промежуточный тест завершён. Ваш результат: {{ midterm_test_result.score }} баллов</strong></p>
-    {% endif %}
-
-    <!-- Кнопка для прохождения финального теста -->
-    {% if show_final_test_button %}
-        <a href="{% url 'test_intro' final_test.id %}" class="btn btn-warning mt-3">Пройти финальный тест</a>
-    {% elif final_test_result %}
-        <p><strong>Финальный тест завершён. Ваш результат: {{ final_test_result.score }} баллов</strong></p>
-    {% endif %}
-
-    <!-- Поле для отзыва стажера или отображение отзыва -->
-    {% if intern_feedback %}
-        <div class="mt-4">
-            <h4>Отзыв стажера:</h4>
-            <p>{{ intern_feedback }}</p>
-        </div>
-    {% elif show_feedback_form %}
-        <h3>Оставьте отзыв о стажировке</h3>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.intern_feedback|as_crispy_field }}
-            <button type="submit" class="btn btn-success">Отправить отзыв</button>
-        </form>
-    {% endif %}
 
     <!-- Модальное окно для информации о материале -->
     <div class="modal fade" id="materialModal" tabindex="-1" aria-labelledby="materialModalLabel" aria-hidden="true">
@@ -152,7 +113,7 @@
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const materialModal = document.getElementById('materialModal');
-
+            
             materialModal.addEventListener('show.bs.modal', function (event) {
                 const link = event.relatedTarget;
                 const title = link.getAttribute('data-title');
