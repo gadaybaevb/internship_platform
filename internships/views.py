@@ -363,9 +363,24 @@ def intern_materials(request):
     completed_stage_2_count = MaterialProgress.objects.filter(intern=intern, material__in=stage_2_materials, completed=True).count()
     stage_2_remaining = stage_2_materials_count - completed_stage_2_count
 
-    # Проверка завершения всех материалов для каждого этапа
+    # Проверка и обновление завершения этапов
     stage_1_completed = completed_stage_1_count == stage_1_materials_count
     stage_2_completed = completed_stage_2_count == stage_2_materials_count
+
+    # Обновляем статус этапов в StageProgress для каждого этапа, если этап завершен
+    if stage_1_completed:
+        stage_progress_1, created = StageProgress.objects.get_or_create(intern=intern, stage=1, position=intern.position)
+        if not stage_progress_1.completed:
+            stage_progress_1.completed = True
+            stage_progress_1.completion_date = timezone.now()
+            stage_progress_1.save()
+
+    if stage_2_completed:
+        stage_progress_2, created = StageProgress.objects.get_or_create(intern=intern, stage=2, position=intern.position)
+        if not stage_progress_2.completed:
+            stage_progress_2.completed = True
+            stage_progress_2.completion_date = timezone.now()
+            stage_progress_2.save()
 
     # Получаем промежуточный и финальный тесты и их результаты
     midterm_test = Test.objects.filter(position=intern.position, stage_number=1).first()
@@ -377,7 +392,7 @@ def intern_materials(request):
     show_midterm_test_button = stage_1_completed and midterm_test and not midterm_test_result
     show_final_test_button = stage_2_completed and final_test and not final_test_result
 
-    # Условие для отображения формы отзыва стажера (появится только после завершения всех этапов, материалов и тестов, и если отзыв еще не оставлен)
+    # Условие для отображения формы отзыва стажера
     show_feedback_form = internship.is_completed() and not intern_feedback
 
     # Передаем все данные в шаблон
@@ -406,6 +421,7 @@ def intern_materials(request):
         'stage_1_remaining': stage_1_remaining,
         'stage_2_remaining': stage_2_remaining,
     })
+
 
 
 def check_deadlines(user):
@@ -467,27 +483,6 @@ def mark_material_completed(request, material_id):
     return redirect('intern_materials')
 
 
-@login_required
-def check_stage_completion(intern, stage):
-    """Проверка, завершены ли все материалы на этапе"""
-    materials_on_stage = Material.objects.filter(position=intern.position, stage=stage)
-    completed_materials = MaterialProgress.objects.filter(intern=intern, material__in=materials_on_stage, completed=True).count()
-
-    if completed_materials == materials_on_stage.count():
-        # Завершаем этап, если все материалы завершены
-        stage_progress, created = StageProgress.objects.get_or_create(intern=intern, stage=stage, position=intern.position)
-        stage_progress.completed = True
-        stage_progress.completion_date = timezone.now()
-        stage_progress.save()
-
-        # Создаем уведомление для стажёра и администратора
-        message = f"Этап {stage} завершён."
-        Notification.objects.create(user=intern, message=message)
-
-        for admin in CustomUser.objects.filter(role='admin'):
-            admin_message = f"Стажёр {intern.full_name} завершил этап {stage}."
-            Notification.objects.create(user=admin, message=admin_message)
-
 
 @login_required
 def mentor_view_intern_materials(request, intern_id):
@@ -519,20 +514,20 @@ def mentor_view_intern_materials(request, intern_id):
     })
 
 
-# @user_passes_test(lambda u: u.is_authenticated)
+@login_required
 def confirm_material_completion(request, progress_id):
     # Получаем запись о прогрессе по материалу
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
 
     # Ментор может подтвердить материал
-    if request.method == 'POST':
+    if request.user.role == 'mentor' and request.method == 'POST':
         material_progress.status = 'completed'  # Обновляем статус на завершённый
         material_progress.completed = True
         material_progress.confirmation_date = timezone.now() + timedelta(hours=5)  # Устанавливаем дату подтверждения со смещением на 5 часов
         material_progress.save()
 
         # Проверяем завершение этапа после подтверждения материала
-        check_stage_completion(material_progress.intern, material_progress.material.stage)
+        #check_stage_completion(material_progress.intern, material_progress.material.stage)
 
         messages.success(request, 'Материал успешно подтверждён как завершённый.')
         return redirect('dashboard')  # Перенаправляем ментора на его дашборд
