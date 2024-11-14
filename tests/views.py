@@ -8,6 +8,7 @@ from django.utils import timezone
 import random
 import json
 from notifications.models import Notification
+from internships.models import Internship
 from decimal import Decimal, ROUND_HALF_UP
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
@@ -545,6 +546,12 @@ def test_results(request, test_id):
 
     message = f"Стажер {user.username} ({user.full_name}) сдал зкзамен {test_result.test}, на {test_score}."
     Notification.objects.create(user=user, message=message)
+
+    # Отправка уведомления ментору
+    internship = Internship.objects.filter(intern=user).first()
+    if internship and internship.mentor:
+        Notification.objects.create(user=internship.mentor, message=message)
+
     return render(request, 'test_results.html', {'test_result': test_result, 'test_score': test_score, 'passing_score': passing_score})
 
 
