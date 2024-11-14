@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.forms import modelformset_factory
 from django.utils import timezone
 import random
+from django.forms import inlineformset_factory
 import json
 from notifications.models import Notification
 from decimal import Decimal, ROUND_HALF_UP
@@ -286,15 +287,52 @@ def questions_list(request, test_id):
 def edit_question(request, question_id):
     question = get_object_or_404(Question, id=question_id)
 
+    # Filter the formset based on the question type
+    AnswerFormSet = inlineformset_factory(
+        Question,
+        Answer,
+        form=AnswerForm,
+        extra=0,
+        can_delete=False
+    )
+
     if request.method == 'POST':
         form = QuestionForm(request.POST, instance=question)
-        if form.is_valid():
+        formset = AnswerFormSet(request.POST, instance=question)
+
+        if form.is_valid() and formset.is_valid():
             form.save()
+            formset.save()
             return redirect('questions_list', test_id=question.test.id)
     else:
         form = QuestionForm(instance=question)
+        formset = AnswerFormSet(instance=question)
 
-    return render(request, 'edit_question.html', {'form': form, 'question': question})
+    # Determine fields to display based on question type
+    for answer_form in formset:
+        if question.question_type == 'sequence':
+            answer_form.fields['sequence_order'].widget.attrs['style'] = 'display:block;'
+            answer_form.fields['match_pair'].widget.attrs['style'] = 'display:none;'
+            answer_form.fields['is_correct'].widget.attrs['style'] = 'display:none;'
+        elif question.question_type == 'match':
+            answer_form.fields['match_pair'].widget.attrs['style'] = 'display:block;'
+            answer_form.fields['sequence_order'].widget.attrs['style'] = 'display:none;'
+            answer_form.fields['is_correct'].widget.attrs['style'] = 'display:none;'
+        elif question.question_type == 'single' or question.question_type == 'multiple':
+            answer_form.fields['is_correct'].widget.attrs['style'] = 'display:block;'
+            answer_form.fields['sequence_order'].widget.attrs['style'] = 'display:none;'
+            answer_form.fields['match_pair'].widget.attrs['style'] = 'display:none;'
+        elif question.question_type == 'true_false':
+            # Show only two options for true/false
+            answer_form.fields['is_correct'].widget.attrs['style'] = 'display:block;'
+            answer_form.fields['sequence_order'].widget.attrs['style'] = 'display:none;'
+            answer_form.fields['match_pair'].widget.attrs['style'] = 'display:none;'
+
+    return render(request, 'edit_question.html', {
+        'form': form,
+        'formset': formset,
+        'question': question
+    })
 
 
 @login_required
