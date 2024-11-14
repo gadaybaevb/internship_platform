@@ -581,7 +581,8 @@ def notify_user(user, message):
 
 def test_report(request, test_result_id):
     # Получаем результат теста
-    test_result = get_object_or_404(TestResult, id=test_result_id, user=request.user)
+    test_result = get_object_or_404(TestResult, id=test_result_id)
+    # test_result = get_object_or_404(TestResult, id=test_result_id, user=request.user)
     # Получаем детализированные результаты каждого вопроса для данного теста
     question_results = TestQuestionResult.objects.filter(test_result=test_result)
 
