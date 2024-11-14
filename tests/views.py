@@ -6,7 +6,6 @@ from django.contrib import messages
 from django.forms import modelformset_factory
 from django.utils import timezone
 import random
-from django.forms import inlineformset_factory
 import json
 from notifications.models import Notification
 from decimal import Decimal, ROUND_HALF_UP
@@ -18,10 +17,8 @@ from django.contrib.auth.decorators import login_required
 def take_test(request, test_id):
     test = get_object_or_404(Test, id=test_id)
     questions = test.questions.all()
-    total_questions = questions.count()
-    answered_questions = len(request.session.get('user_answers', {}))
 
-    # Clear session data if coming from the intro page
+    # Reset session data if the test is restarted
     referer_url = request.META.get('HTTP_REFERER', '')
     if 'intro' in referer_url:
         request.session.pop('test_start_time', None)
@@ -29,38 +26,42 @@ def take_test(request, test_id):
         request.session.pop('user_answers', None)
         request.session.pop('time_left', None)
 
-    # Check if the user already completed this test
+    # Check if the user already completed the test
     test_result = TestResult.objects.filter(user=request.user, test=test).first()
     if test_result and test_result.completed_at:
-        messages.info(request, 'You have already completed this test.')
+        messages.info(request, 'Вы уже завершили этот тест.')
         return redirect('test_results', test_id=test.id)
 
-    # Manage time tracking
+    # Calculate time left for the test
     if 'test_start_time' not in request.session:
         request.session['test_start_time'] = timezone.now().isoformat()
-        time_left = test.time_limit * 60  # time in seconds
+        time_left = test.time_limit * 60
     else:
         test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
         time_spent = timezone.now() - test_start_time
         time_left = request.session.get('time_left', test.time_limit * 60) - time_spent.total_seconds()
         if time_left <= 0:
-            messages.error(request, "Time for the test has expired.")
+            messages.error(request, "Время для теста истекло.")
             return redirect('test_results', test_id=test.id)
 
     request.session['time_left'] = time_left
     current_question_number = request.session.get('current_question_number', 1)
     current_question = questions[current_question_number - 1]
 
-    # Shuffle answers for randomness in display
+    # Calculate the number of answered questions
+    answered_questions_count = current_question_number - 1
+
+    # Shuffle and prepare answers for display
     answers = list(current_question.answers.all())
     random.shuffle(answers)
     current_question.answers_shuffled = answers
 
-    # Initialize pairs for "match" question type
+    # Prepare initial pairs for match questions
     if current_question.question_type == 'match':
         initial_pairs = {
-            "left": [(str(answer.id), answer.text) for answer in answers],
-            "right": [(str(answer.match_pair), answer.text) for answer in answers]
+            "left": [(str(answer.id), answer.text) for answer in answers],  # `text` for the left side
+            "right": [(str(answer.id), answer.match_pair) for answer in answers if answer.match_pair]
+            # `match_pair` for the right side
         }
         random.shuffle(initial_pairs["left"])
         random.shuffle(initial_pairs["right"])
@@ -68,49 +69,38 @@ def take_test(request, test_id):
     else:
         initial_pairs = None
 
-    # Handle form submission for each question type
+    # Handle POST request for submitting answers
     if request.method == 'POST':
         user_answers = request.session.get('user_answers', {})
 
         if current_question.question_type == 'multiple':
             user_answer = request.POST.getlist(f'question_{current_question.id}_answers')
-            user_answers[str(current_question.id)] = user_answer
-
         elif current_question.question_type == 'sequence':
             user_answer = request.POST.get(f'question_{current_question.id}_sequence')
-            user_answers[str(current_question.id)] = user_answer
-
         elif current_question.question_type == 'match':
             user_answer = request.POST.get(f"question_{current_question.id}_matches")
-            if not user_answer:
-                user_answer = initial_pairs
-            else:
-                try:
-                    user_answer = json.loads(user_answer)
-                except json.JSONDecodeError:
-                    user_answer = {}
+            try:
+                user_answer = json.loads(user_answer) if user_answer else initial_pairs
+            except json.JSONDecodeError:
+                user_answer = {}
             user_answers[f"{current_question.id}_matches"] = json.dumps(user_answer)
-
-        else:  # "single" and "true_false" question types
+        else:
             user_answer = request.POST.get(f'question_{current_question.id}')
-            user_answers[str(current_question.id)] = user_answer
 
-        # Update session with user's answers
+        user_answers[str(current_question.id)] = user_answer
         request.session['user_answers'] = user_answers
 
-        # Move to the next question or finish the test
+        # Move to next question or finish the test
         if current_question_number < len(questions):
             request.session['current_question_number'] = current_question_number + 1
             return redirect('take_test', test_id=test.id)
 
-        # If all questions are answered, calculate the score
+        # Calculate and display the test result
         score = evaluate_test(test, user_answers, request)
-        if score >= test.passing_score:
-            messages.success(request, f"Test passed. Your score: {score}%")
-        else:
-            messages.error(request, f"Test not passed. Your score: {score}%")
+        result_message = "Тест пройден. Ваш результат: {}%" if score >= test.passing_score else "Тест не пройден. Ваш результат: {}%"
+        messages.success(request, result_message.format(score))
 
-        # Clear session data after test completion
+        # Clean up session data after test completion
         del request.session['user_answers']
         del request.session['current_question_number']
         del request.session['test_start_time']
@@ -122,12 +112,12 @@ def take_test(request, test_id):
         'test': test,
         'current_question': current_question,
         'current_question_number': current_question_number,
-        'is_last_question': current_question_number == total_questions,
+        'answered_questions_count': answered_questions_count,  # Pass answered question count
+        'is_last_question': current_question_number == len(questions),
         'time_left': int(time_left),
-        'initial_pairs': initial_pairs,
-        'total_questions': total_questions,
-        'answered_questions': answered_questions
+        'initial_pairs': initial_pairs
     })
+
 
 
 @staff_member_required
@@ -276,52 +266,15 @@ def questions_list(request, test_id):
 def edit_question(request, question_id):
     question = get_object_or_404(Question, id=question_id)
 
-    # Filter the formset based on the question type
-    AnswerFormSet = inlineformset_factory(
-        Question,
-        Answer,
-        form=AnswerForm,
-        extra=0,
-        can_delete=False
-    )
-
     if request.method == 'POST':
         form = QuestionForm(request.POST, instance=question)
-        formset = AnswerFormSet(request.POST, instance=question)
-
-        if form.is_valid() and formset.is_valid():
+        if form.is_valid():
             form.save()
-            formset.save()
             return redirect('questions_list', test_id=question.test.id)
     else:
         form = QuestionForm(instance=question)
-        formset = AnswerFormSet(instance=question)
 
-    # Determine fields to display based on question type
-    for answer_form in formset:
-        if question.question_type == 'sequence':
-            answer_form.fields['sequence_order'].widget.attrs['style'] = 'display:block;'
-            answer_form.fields['match_pair'].widget.attrs['style'] = 'display:none;'
-            answer_form.fields['is_correct'].widget.attrs['style'] = 'display:none;'
-        elif question.question_type == 'match':
-            answer_form.fields['match_pair'].widget.attrs['style'] = 'display:block;'
-            answer_form.fields['sequence_order'].widget.attrs['style'] = 'display:none;'
-            answer_form.fields['is_correct'].widget.attrs['style'] = 'display:none;'
-        elif question.question_type == 'single' or question.question_type == 'multiple':
-            answer_form.fields['is_correct'].widget.attrs['style'] = 'display:block;'
-            answer_form.fields['sequence_order'].widget.attrs['style'] = 'display:none;'
-            answer_form.fields['match_pair'].widget.attrs['style'] = 'display:none;'
-        elif question.question_type == 'true_false':
-            # Show only two options for true/false
-            answer_form.fields['is_correct'].widget.attrs['style'] = 'display:block;'
-            answer_form.fields['sequence_order'].widget.attrs['style'] = 'display:none;'
-            answer_form.fields['match_pair'].widget.attrs['style'] = 'display:none;'
-
-    return render(request, 'edit_question.html', {
-        'form': form,
-        'formset': formset,
-        'question': question
-    })
+    return render(request, 'edit_question.html', {'form': form, 'question': question})
 
 
 @login_required
@@ -405,6 +358,7 @@ def evaluate_test(test, user_answers, request):
     test_result.save()
 
     return test_result.score
+
 
 
 def evaluate_single(question, user_answer):
@@ -492,17 +446,19 @@ def evaluate_sequence(question, user_answer):
 
 def evaluate_match(question, user_answer):
     """Оценка вопроса типа соответствие"""
-    # Получаем правильные соответствия как множество кортежей
-    correct_matches = {(str(answer.id), answer.match_pair) for answer in question.answers.all()}
+
+    # Получаем правильные соответствия как множество кортежей (id ответа, match_pair)
+    correct_matches = {(str(answer.id), str(answer.match_pair)) for answer in question.answers.all()}
 
     if not user_answer:
         print("Ответ пользователя для match пуст или None")
         return 0.0
 
     try:
-        # Загружаем ответ пользователя как словарь и преобразуем в множество кортежей
+        # Преобразуем ответ пользователя в словарь и создаем множество кортежей
         user_matches_dict = json.loads(user_answer) if isinstance(user_answer, str) else user_answer
-        user_matches = {(key, value) for key, value in user_matches_dict.items()}
+        # Убедимся, что все значения в user_matches_dict приведены к строкам для надежного сравнения
+        user_matches = {(str(key), str(value)) for key, value in user_matches_dict.items()}
 
     except (json.JSONDecodeError, TypeError):
         print("Ошибка при декодировании JSON ответа пользователя для match")
@@ -510,11 +466,12 @@ def evaluate_match(question, user_answer):
 
     # Сравниваем правильные пары и пары пользователя
     if correct_matches == user_matches:
-
-        return 1.0
+        print("Ответ пользователя для match полностью правильный.")
+        return 1.0  # Полный балл за правильный ответ
     else:
+        print(f"Несоответствие: правильные пары - {correct_matches}, пары пользователя - {user_matches}")
+        return 0.0  # Неверный ответ
 
-        return 0.0
 
 
 @login_required

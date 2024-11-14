@@ -4,30 +4,29 @@
 <div class="container mt-4">
     <div class="row">
         <div class="col-lg-8 col-md-12">
-            <h2>Test: {{ test.title }}</h2>
+            <h2>Прохождение теста: {{ test.title }}</h2>
 
-            <form id="test-form" method="post" onsubmit="return validateForm()">
+            <form id="test-form" method="post" onsubmit="return validateForm()"> <!-- Валидация включена -->
                 {% csrf_token %}
                 <div class="question mt-4 p-3 border rounded">
                     <h4>{{ current_question_number }}. {{ current_question.text }}</h4>
 
-                    <!-- Render answers based on question type -->
                     {% if current_question.question_type == 'single' %}
                         {% for answer in current_question.answers_shuffled %}
                             <div class="form-check">
-                                <input type="radio" name="question_{{ current_question.id }}" value="{{ answer.id }}" class="form-check-input" required>
+                                <input type="radio" name="question_{{ current_question.id }}" value="{{ answer.id }}" class="form-check-input">
                                 <label class="form-check-label">{{ answer.text }}</label>
                             </div>
                         {% endfor %}
 
                     {% elif current_question.question_type == 'true_false' %}
                         <div class="form-check">
-                            <input type="radio" name="question_{{ current_question.id }}" value="true" class="form-check-input" required>
-                            <label class="form-check-label">True</label>
+                            <input type="radio" name="question_{{ current_question.id }}" value="true" class="form-check-input">
+                            <label class="form-check-label">Верно</label>
                         </div>
                         <div class="form-check">
-                            <input type="radio" name="question_{{ current_question.id }}" value="false" class="form-check-input" required>
-                            <label class="form-check-label">False</label>
+                            <input type="radio" name="question_{{ current_question.id }}" value="false" class="form-check-input">
+                            <label class="form-check-label">Неверно</label>
                         </div>
 
                     {% elif current_question.question_type == 'multiple' %}
@@ -39,7 +38,7 @@
                         {% endfor %}
 
                     {% elif current_question.question_type == 'sequence' %}
-                        <p>Arrange in the correct order:</p>
+                        <p>Перетащите карточки в правильном порядке:</p>
                         <ul id="sequence-list" class="list-group">
                             {% for answer in current_question.answers_shuffled %}
                                 <li class="list-group-item sequence-item" data-id="{{ answer.id }}">
@@ -50,7 +49,7 @@
                         <input type="hidden" id="sequence-result" name="question_{{ current_question.id }}_sequence">
 
                     {% elif current_question.question_type == 'match' %}
-                        <p>Match the items:</p>
+                        <p>Сопоставьте элементы:</p>
                         <div class="row">
                             <div class="col-6">
                                 <ul id="match-list-left" class="list-group">
@@ -77,9 +76,9 @@
 
                 <div class="mt-3">
                     {% if not is_last_question %}
-                        <button type="submit" class="btn btn-primary">Следующий вопрос</button>
+                        <button type="submit" id="submit-btn" class="btn btn-primary">Следующий вопрос</button>
                     {% else %}
-                        <button type="submit" class="btn btn-success">Закончить тест</button>
+                        <button type="submit" id="submit-btn" class="btn btn-success">Завершить тест</button>
                     {% endif %}
                 </div>
             </form>
@@ -91,15 +90,15 @@
                 <div class="alert alert-info">
                     <h5>Информация о тесте</h5>
                     <p><strong>Осталось времени:</strong> <span id="timer">{{ time_left|minutes }}:{{ time_left|seconds|stringformat:"02d" }}</span></p>
-                    <p><strong>Итого вопросов:</strong> {{ total_questions }}</p>
-                    <p><strong>Итого ответили:</strong> {{ answered_questions }}</p>
+                    <p><strong>Итого вопросов:</strong> {{ test.questions.count }}</p>
+                    <p><strong>Отвечено:</strong> {{ answered_questions_count }}</p>
+                    <p><strong>Текущий вопрос:</strong> {{ current_question_number }} из {{ test.questions.count }}</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- JavaScript for Timer and Drag-and-Drop -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
 <script>
     const timerElement = document.getElementById('timer');
@@ -116,6 +115,26 @@
         }
     }
     setInterval(updateTimer, 1000);
+
+    // Проверка выбора для вопросов с radio или checkbox
+    function validateForm() {
+        const questionType = "{{ current_question.question_type }}";
+        
+        // Выполняем проверку только для `single`, `true_false`, и `multiple`
+        if (questionType === 'single' || questionType === 'true_false' || questionType === 'multiple') {
+            const radioGroups = document.querySelectorAll('.question input[type="radio"]');
+            const checkGroups = document.querySelectorAll('.question input[type="checkbox"]');
+
+            let radioChecked = Array.from(radioGroups).some(radio => radio.checked);
+            let checkChecked = Array.from(checkGroups).some(checkbox => checkbox.checked);
+
+            if (!radioChecked && !checkChecked) {
+                alert("Пожалуйста, выберите хотя бы один вариант ответа перед отправкой.");
+                return false;
+            }
+        }
+        return true;
+    }
 
     const sequenceList = document.getElementById('sequence-list');
     if (sequenceList) {
@@ -150,12 +169,14 @@
         const pairs = {};
         const leftItems = Array.from(leftList.querySelectorAll('li'));
         const rightItems = Array.from(rightList.querySelectorAll('li'));
+
         leftItems.forEach((leftEl, index) => {
             const rightEl = rightItems[index];
             if (leftEl && rightEl) {
-                pairs[leftEl.dataset.id] = rightEl.dataset.id;
+                pairs[leftEl.dataset.id] = rightEl.textContent.trim();
             }
         });
+
         matchResult.value = JSON.stringify(pairs);
     }
 </script>
