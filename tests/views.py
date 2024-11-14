@@ -116,8 +116,6 @@ def take_test(request, test_id):
     })
 
 
-
-
 def finish_test_and_redirect(request, test, message):
     """Helper function to finalize the test and redirect to the results page."""
     user_answers = request.session.get('user_answers', {})
@@ -275,7 +273,6 @@ def questions_list(request, test_id):
     return render(request, 'questions_list.html', {'page_obj': page_obj, 'search_query': search_query, 'test': test})
 
 
-
 @login_required
 def edit_question(request, question_id):
     question = get_object_or_404(Question, id=question_id)
@@ -328,7 +325,6 @@ def edit_question(request, question_id):
         'formset': formset,
         'question': question
     })
-
 
 
 @login_required
@@ -412,7 +408,6 @@ def evaluate_test(test, user_answers, request):
     test_result.save()
 
     return test_result.score
-
 
 
 def evaluate_single(question, user_answer):
@@ -525,7 +520,6 @@ def evaluate_match(question, user_answer):
     else:
         print(f"Несоответствие: правильные пары - {correct_matches}, пары пользователя - {user_matches}")
         return 0.0  # Неверный ответ
-
 
 
 @login_required

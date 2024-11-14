@@ -798,9 +798,20 @@ def weekly_report(request):
         total_materials = Material.objects.filter(position=position).count()  # Общее количество материалов
         completed_materials = MaterialProgress.objects.filter(intern=intern, completed=True).count()  # Количество завершенных материалов
 
-        # Получение результатов для промежуточного и финального тестов
-        mid_test_result = TestResult.objects.filter(user=intern, test__title__icontains="Mid").first()
-        final_test_result = TestResult.objects.filter(user=intern, test__title__icontains="Final").first()
+        # Отладочная информация
+
+        # Проверяем, что есть данные
+        all_test_results = TestResult.objects.filter(user=intern)
+
+
+        # Попробуем найти результаты по одному полю, чтобы отладить
+        if all_test_results.filter(test__position=position).exists():
+            print("Data exists for intern and position.")
+
+        mid_test_result = all_test_results.filter(test__position=position, test__stage_number=1).first()
+        final_test_result = all_test_results.filter(test__position=position, test__stage_number=2).first()
+
+
 
         # Добавление данных в отчет
         report_data.append({
