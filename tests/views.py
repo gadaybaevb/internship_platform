@@ -40,15 +40,11 @@ def take_test(request, test_id):
         time_spent = timezone.now() - test_start_time
         time_left = request.session.get('time_left', test.time_limit * 60) - time_spent.total_seconds()
         if time_left <= 0:
-            messages.error(request, "Время для теста истекло.")
-            return redirect('test_results', test_id=test.id)
+            return finish_test_and_redirect(request, test, "Время для теста истекло.")
 
     request.session['time_left'] = time_left
     current_question_number = request.session.get('current_question_number', 1)
     current_question = questions[current_question_number - 1]
-
-    # Calculate the number of answered questions
-    answered_questions_count = current_question_number - 1
 
     # Shuffle and prepare answers for display
     answers = list(current_question.answers.all())
@@ -95,29 +91,32 @@ def take_test(request, test_id):
             request.session['current_question_number'] = current_question_number + 1
             return redirect('take_test', test_id=test.id)
         else:
-            # Calculate and display the test result
-            score = evaluate_test(test, user_answers, request)
-            result_message = "Тест пройден. Ваш результат: {}%" if score >= test.passing_score else "Тест не пройден. Ваш результат: {}%"
-            messages.success(request, result_message.format(score))
-
-            # Clean up session data after test completion
-            for key in ['user_answers', 'current_question_number', 'test_start_time', 'time_left']:
-                if key in request.session:
-                    del request.session[key]
-
-            return redirect('test_results', test_id=test.id)
+            # Finish the test
+            return finish_test_and_redirect(request, test, "Тест завершен.")
 
     return render(request, 'take_test.html', {
         'test': test,
         'current_question': current_question,
         'current_question_number': current_question_number,
-        'answered_questions_count': answered_questions_count,
         'is_last_question': current_question_number == len(questions),
         'time_left': int(time_left),
         'initial_pairs': initial_pairs
     })
 
 
+def finish_test_and_redirect(request, test, message):
+    """Helper function to finalize the test and redirect to the results page."""
+    user_answers = request.session.get('user_answers', {})
+    score = evaluate_test(test, user_answers, request)
+    result_message = f"{message} Ваш результат: {score}%."
+    messages.success(request, result_message)
+
+    # Clean up session data after test completion
+    for key in ['user_answers', 'current_question_number', 'test_start_time', 'time_left']:
+        if key in request.session:
+            del request.session[key]
+
+    return redirect('test_results', test_id=test.id)
 
 
 @staff_member_required
