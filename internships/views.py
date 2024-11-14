@@ -316,10 +316,10 @@ def intern_materials(request):
     intern = request.user
     internship = Internship.objects.filter(intern=intern).first()
 
-    # Проверяем, есть ли уже отзыв от стажера
+    # Check for intern feedback
     intern_feedback = internship.intern_feedback if internship else None
 
-    # Создаем форму для отзыва, но показываем ее только при отсутствии отзыва
+    # Create a feedback form if not provided yet
     if request.method == 'POST' and not intern_feedback:
         form = ReviewForm(request.POST, instance=internship)
         if form.is_valid():
@@ -329,24 +329,23 @@ def intern_materials(request):
     else:
         form = ReviewForm(instance=internship)
 
-    # Если стажировка не найдена, возвращаем пустые данные
+    # Return empty data if no internship is found
     if not internship:
         return render(request, 'intern_materials.html', {'materials': [], 'progress_summary': {}})
 
-    # Дата завершения стажировки
+    # Calculate internship end date and time left
     start_date = internship.start_date
     end_date = start_date + timedelta(days=intern.position.duration_days)
     end_date_time_aware = timezone.make_aware(datetime.combine(end_date, datetime.min.time()))
     time_left = max((end_date_time_aware - timezone.now()).days, 0)
 
-    # Разделяем материалы на завершенные и незавершенные
+    # Separate materials into completed and pending
     completed_materials = []
     pending_materials = []
     materials = Material.objects.filter(position=intern.position).order_by('stage')
 
     for material in materials:
         material_progress = MaterialProgress.objects.filter(intern=intern, material=material).first()
-        # Проверяем статус и добавляем материал в нужный список
         if material_progress:
             if material_progress.completed:
                 completed_materials.append({'material': material, 'status': 'completed'})
@@ -355,10 +354,9 @@ def intern_materials(request):
             else:
                 pending_materials.append({'material': material, 'status': 'not_started'})
         else:
-            # Если прогресса еще нет, материал не завершен и статус по умолчанию "not_started"
             pending_materials.append({'material': material, 'status': 'not_started'})
 
-    # Подсчет завершенных и оставшихся материалов для каждого этапа
+    # Count completed and remaining materials for each stage
     stage_1_materials = Material.objects.filter(position=intern.position, stage=1)
     stage_1_materials_count = stage_1_materials.count()
     completed_stage_1_count = MaterialProgress.objects.filter(intern=intern, material__in=stage_1_materials, completed=True).count()
@@ -369,11 +367,10 @@ def intern_materials(request):
     completed_stage_2_count = MaterialProgress.objects.filter(intern=intern, material__in=stage_2_materials, completed=True).count()
     stage_2_remaining = stage_2_materials_count - completed_stage_2_count
 
-    # Проверка и обновление завершения этапов
+    # Update stage completion statuses
     stage_1_completed = completed_stage_1_count == stage_1_materials_count
     stage_2_completed = completed_stage_2_count == stage_2_materials_count
 
-    # Обновляем статус этапов в StageProgress для каждого этапа, если этап завершен
     if stage_1_completed:
         stage_progress_1, created = StageProgress.objects.get_or_create(intern=intern, stage=1, position=intern.position)
         if not stage_progress_1.completed:
@@ -388,20 +385,20 @@ def intern_materials(request):
             stage_progress_2.completion_date = timezone.now()
             stage_progress_2.save()
 
-    # Получаем промежуточный и финальный тесты и их результаты
+    # Fetch midterm and final tests and their results
     midterm_test = Test.objects.filter(position=intern.position, stage_number=1).first()
     final_test = Test.objects.filter(position=intern.position, stage_number=2).first()
     midterm_test_result = TestResult.objects.filter(user=intern, test=midterm_test).first() if midterm_test else None
     final_test_result = TestResult.objects.filter(user=intern, test=final_test).first() if final_test else None
 
-    # Определяем, нужно ли показывать кнопки для тестов
-    show_midterm_test_button = stage_1_completed and midterm_test and not midterm_test_result
-    show_final_test_button = stage_2_completed and final_test and not final_test_result
+    # Update test button visibility based on test completion
+    show_midterm_test_button = not midterm_test_result  # Show if midterm test has not been taken
+    show_final_test_button = not final_test_result      # Show if final test has not been taken
 
-    # Условие для отображения формы отзыва стажера
+    # Show feedback form only if all stages are completed and feedback hasn't been given
     show_feedback_form = internship.is_completed() and not intern_feedback
 
-    # Передаем все данные в шаблон
+    # Render template with all data
     return render(request, 'intern_materials.html', {
         'pending_materials': pending_materials,
         'completed_materials': completed_materials,
