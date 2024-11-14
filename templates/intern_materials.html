@@ -12,6 +12,14 @@
         <p><strong>Оставшееся время:</strong> {{ progress_summary.time_left }} дней</p>
         <p><strong>Для промежуточного теста:</strong> Осталось пройти {{ stage_1_remaining }} материалов 1 этапа</p>
         <p><strong>Для финального теста:</strong> Осталось пройти {{ stage_2_remaining }} материалов 2 этапа</p>
+
+        <!-- Кнопки для прохождения тестов -->
+        {% if show_midterm_test_button %}
+            <a href="{% url 'take_test' midterm_test.id %}" class="btn btn-primary mt-2">Пройти промежуточный тест</a>
+        {% endif %}
+        {% if show_final_test_button %}
+            <a href="{% url 'take_test' final_test.id %}" class="btn btn-primary mt-2">Пройти финальный тест</a>
+        {% endif %}
     </div>
 
     <h4>Незавершенные материалы</h4>
