@@ -262,19 +262,60 @@ def questions_list(request, test_id):
     return render(request, 'questions_list.html', {'page_obj': page_obj, 'search_query': search_query, 'test': test})
 
 
+
 @login_required
 def edit_question(request, question_id):
     question = get_object_or_404(Question, id=question_id)
+    AnswerFormSet = modelformset_factory(Answer, form=AnswerForm, extra=1, can_delete=True)
 
     if request.method == 'POST':
         form = QuestionForm(request.POST, instance=question)
-        if form.is_valid():
-            form.save()
-            return redirect('questions_list', test_id=question.test.id)
+        formset = AnswerFormSet(request.POST, queryset=question.answers.all())
+
+        if form.is_valid() and formset.is_valid():
+            answers = [f.cleaned_data for f in formset if f.cleaned_data and not f.cleaned_data.get('DELETE', False)]
+            question_type = form.cleaned_data['question_type']
+            valid = True
+
+            # Валидация ответов в зависимости от типа вопроса
+            if question_type == 'single':
+                correct_answers = [a for a in answers if a.get('is_correct')]
+                if len(correct_answers) != 1:
+                    messages.error(request, 'Для типа "single" должен быть выбран ровно один правильный ответ.')
+                    valid = False
+
+            elif question_type == 'multi':
+                correct_answers = [a for a in answers if a.get('is_correct')]
+                if len(correct_answers) <= 1:
+                    messages.error(request, 'Для типа "multi" выберите больше одного правильного ответа.')
+                    valid = False
+
+            elif question_type == 'true_false':
+                if len(answers) != 2 or sum(1 for a in answers if a.get('is_correct')) != 1:
+                    messages.error(request, 'Для типа "true_false" должно быть ровно два ответа, и один из них должен быть правильным.')
+                    valid = False
+
+            if valid:
+                form.save()
+                formset.save()  # Сохранение всех изменений в formset
+                messages.success(request, "Вопрос и ответы успешно сохранены.")
+                return redirect('questions_list', test_id=question.test.id)
+        else:
+            if not form.is_valid():
+                print("Ошибки формы вопроса:", form.errors)
+            if not formset.is_valid():
+                print("Ошибки formset ответов:", formset.errors)
+
     else:
         form = QuestionForm(instance=question)
+        formset = AnswerFormSet(queryset=question.answers.all())
 
-    return render(request, 'edit_question.html', {'form': form, 'question': question})
+    return render(request, 'edit_question.html', {
+        'form': form,
+        'formset': formset,
+        'question': question
+    })
+
 
 
 @login_required

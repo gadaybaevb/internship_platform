@@ -9,35 +9,66 @@
         {% csrf_token %}
         {{ form|crispy }}
         
-        <h3>Answer Options</h3>
+        <h3>Варианты ответов</h3>
         <div class="formset">
             {{ formset.management_form }}
             {% for answer_form in formset %}
                 <div class="form-group">
+                    {{ answer_form.id }}  <!-- Скрытое поле ID для каждого ответа -->
+
                     {{ answer_form.text.label_tag }}
                     {{ answer_form.text }}
-                    
-                    {% if answer_form.fields.sequence_order.widget.attrs.style == 'display:block;' %}
+
+                    {% if form.question_type.value == 'sequence' %}
                         {{ answer_form.sequence_order.label_tag }}
                         {{ answer_form.sequence_order }}
-                    {% endif %}
-                    
-                    {% if answer_form.fields.match_pair.widget.attrs.style == 'display:block;' %}
+                    {% elif form.question_type.value == 'match' %}
                         {{ answer_form.match_pair.label_tag }}
                         {{ answer_form.match_pair }}
-                    {% endif %}
-                    
-                    {% if answer_form.fields.is_correct.widget.attrs.style == 'display:block;' %}
+                    {% else %}
+                        <!-- Поле для указания правильного ответа для других типов вопросов -->
                         {{ answer_form.is_correct.label_tag }}
                         {{ answer_form.is_correct }}
                     {% endif %}
-                    
-                    <!-- Exclude the delete field if you want to hide it from the UI -->
                 </div>
             {% endfor %}
         </div>
         
-        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
     </form>
 </div>
+
+<script>
+    // Дополнительный JavaScript для обновления видимости полей в зависимости от типа вопроса
+    document.addEventListener('DOMContentLoaded', function () {
+        const questionTypeField = document.getElementById('id_question_type');
+        const answerForms = document.querySelectorAll('.form-group');
+
+        function toggleAnswerFields() {
+            const questionType = questionTypeField.value;
+            answerForms.forEach((form) => {
+                const matchField = form.querySelector('[name$="match_pair"]');
+                const isCorrectField = form.querySelector('[name$="is_correct"]');
+                const sequenceField = form.querySelector('[name$="sequence_order"]');
+
+                if (questionType === 'match') {
+                    if (matchField) matchField.style.display = '';
+                    if (isCorrectField) isCorrectField.parentElement.style.display = 'none';
+                    if (sequenceField) sequenceField.style.display = 'none';
+                } else if (questionType === 'sequence') {
+                    if (matchField) matchField.style.display = 'none';
+                    if (isCorrectField) isCorrectField.parentElement.style.display = 'none';
+                    if (sequenceField) sequenceField.style.display = '';
+                } else {
+                    if (matchField) matchField.style.display = 'none';
+                    if (isCorrectField) isCorrectField.parentElement.style.display = '';
+                    if (sequenceField) sequenceField.style.display = 'none';
+                }
+            });
+        }
+
+        questionTypeField.addEventListener('change', toggleAnswerFields);
+        toggleAnswerFields();  // Инициализация при загрузке
+    });
+</script>
 {% endblock %}
