@@ -35,7 +35,7 @@
                 </td>
                 <td>
                     {% if item.material.file %}
-                        {{ item.material.file }}
+                        <a href="{{ item.material.file.url }}">{{ item.material.file.name }}</a>
                     {% else %}
                         <span class="text-warning">Нет файла</span>
                     {% endif %}
@@ -95,7 +95,7 @@
                                 </td>
                                 <td>
                                     {% if item.material.file %}
-                                        {{ item.material.file }}
+                                        <a href="{{ item.material.file.url }}">{{ item.material.file.name }}</a>
                                     {% else %}
                                         <span class="text-warning">Нет файла</span>
                                     {% endif %}

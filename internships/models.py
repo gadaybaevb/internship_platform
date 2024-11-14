@@ -3,6 +3,7 @@ from departments.models import Position
 from django.contrib.auth import get_user_model
 from users.models import CustomUser
 from django.utils import timezone
+from django.core.files.storage import default_storage
 from datetime import timedelta
 
 
@@ -15,6 +16,13 @@ class Material(models.Model):
 
     def __str__(self):
         return f'{self.title} (Этап {self.stage} для {self.position.name})'
+
+    def delete(self, *args, **kwargs):
+        # Delete file from storage when deleting the `Material` object
+        if self.file:
+            if default_storage.exists(self.file.name):
+                default_storage.delete(self.file.name)
+        super().delete(*args, **kwargs)  # Call the "real" delete() method
 
 
 class Internship(models.Model):

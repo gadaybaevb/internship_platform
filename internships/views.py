@@ -11,6 +11,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.contrib import messages
 from users.models import CustomUser
+from django.core.files.storage import default_storage
 from .utils import create_stage_progress
 from datetime import timedelta, datetime
 from django.utils import timezone
@@ -118,10 +119,15 @@ def material_create(request):
 @login_required
 def material_edit(request, material_id):
     material = get_object_or_404(Material, id=material_id)
+    old_file = material.file  # Store the original file path before saving
 
     if request.method == 'POST':
         form = MaterialForm(request.POST, request.FILES, instance=material)
         if form.is_valid():
+            # Check if the file field is being cleared
+            if 'file-clear' in request.POST and old_file:
+                if default_storage.exists(old_file.name):
+                    default_storage.delete(old_file.name)  # Delete old file if it exists
             form.save()
             return redirect('material_list')
     else:
