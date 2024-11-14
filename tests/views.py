@@ -21,7 +21,7 @@ def take_test(request, test_id):
     # Reset session data if the test is restarted
     referer_url = request.META.get('HTTP_REFERER', '')
     if 'intro' in referer_url:
-        for key in ['test_start_time', 'current_question_number', 'user_answers', 'time_left']:
+        for key in ['test_start_time', 'current_question_number', 'user_answers']:
             if key in request.session:
                 del request.session[key]
 
@@ -31,20 +31,24 @@ def take_test(request, test_id):
         messages.info(request, 'Вы уже завершили этот тест.')
         return redirect('test_results', test_id=test.id)
 
-    # Calculate time left for the test
+    # Initialize the start time if not set in session
     if 'test_start_time' not in request.session:
         request.session['test_start_time'] = timezone.now().isoformat()
-        time_left = test.time_limit * 60
-    else:
-        test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
-        time_spent = timezone.now() - test_start_time
-        time_left = request.session.get('time_left', test.time_limit * 60) - time_spent.total_seconds()
-        if time_left <= 0:
-            return finish_test_and_redirect(request, test, "Время для теста истекло.")
 
-    request.session['time_left'] = time_left
+    # Calculate time left based on fixed start time
+    test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
+    time_spent = timezone.now() - test_start_time
+    time_left = test.time_limit * 60 - time_spent.total_seconds()
+
+    # Check if time is up
+    if time_left <= 0:
+        return finish_test_and_redirect(request, test, "Время для теста истекло.")
+
     current_question_number = request.session.get('current_question_number', 1)
     current_question = questions[current_question_number - 1]
+
+    # Calculate the number of answered questions
+    answered_questions_count = current_question_number - 1
 
     # Shuffle and prepare answers for display
     answers = list(current_question.answers.all())
@@ -98,10 +102,12 @@ def take_test(request, test_id):
         'test': test,
         'current_question': current_question,
         'current_question_number': current_question_number,
+        'answered_questions_count': answered_questions_count,
         'is_last_question': current_question_number == len(questions),
-        'time_left': int(time_left),
+        'time_left': int(time_left),  # Use fixed `time_left` for consistent countdown
         'initial_pairs': initial_pairs
     })
+
 
 
 def finish_test_and_redirect(request, test, message):
