@@ -19,6 +19,7 @@
         <thead>
             <tr>
                 <th>Название материала</th>
+                <th>Файл</th>
                 <th>Этап</th>
                 <th>Статус</th>
                 <th>Действие</th>
@@ -31,6 +32,13 @@
                     <a href="#" data-bs-toggle="modal" data-bs-target="#materialModal" data-title="{{ item.material.title }}" data-description="{{ item.material.description }}">
                         {{ item.material.title }}
                     </a>
+                </td>
+                <td>
+                    {% if item.material.file %}
+                        {{ item.material.file }}
+                    {% else %}
+                        <span class="text-warning">Нет файла</span>
+                    {% endif %}
                 </td>
                 <td>Этап {{ item.material.stage }}</td>
                 <td>
@@ -72,6 +80,7 @@
                         <thead>
                             <tr>
                                 <th>Название материала</th>
+                                <th>Файл</th>
                                 <th>Этап</th>
                                 <th>Статус</th>
                             </tr>
@@ -83,6 +92,13 @@
                                     <a href="#" data-bs-toggle="modal" data-bs-target="#materialModal" data-title="{{ item.material.title }}" data-description="{{ item.material.description }}">
                                         {{ item.material.title }}
                                     </a>
+                                </td>
+                                <td>
+                                    {% if item.material.file %}
+                                        {{ item.material.file }}
+                                    {% else %}
+                                        <span class="text-warning">Нет файла</span>
+                                    {% endif %}
                                 </td>
                                 <td>Этап {{ item.material.stage }}</td>
                                 <td><span class="text-success">{{ item.status }}</span></td>
