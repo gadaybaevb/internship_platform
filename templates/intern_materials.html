@@ -15,10 +15,10 @@
 
         <!-- Кнопки для прохождения тестов -->
         {% if show_midterm_test_button %}
-            <a href="{% url 'take_test' midterm_test.id %}" class="btn btn-primary mt-2">Пройти промежуточный тест</a>
+            <a href="{% url 'test_intro' midterm_test.id %}" class="btn btn-primary mt-2">Пройти промежуточный тест</a>
         {% endif %}
         {% if show_final_test_button %}
-            <a href="{% url 'take_test' final_test.id %}" class="btn btn-primary mt-2">Пройти финальный тест</a>
+            <a href="{% url 'test_intro' final_test.id %}" class="btn btn-primary mt-2">Пройти финальный тест</a>
         {% endif %}
     </div>
 
