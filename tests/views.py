@@ -16,12 +16,11 @@ from django.contrib.auth.decorators import login_required
 @login_required
 def take_test(request, test_id):
     test = get_object_or_404(Test, id=test_id)
-    questions = test.questions.all()
 
     # Reset session data if the test is restarted
     referer_url = request.META.get('HTTP_REFERER', '')
     if 'intro' in referer_url:
-        for key in ['test_start_time', 'current_question_number', 'user_answers']:
+        for key in ['test_start_time', 'current_question_number', 'user_answers', 'question_order']:
             if key in request.session:
                 del request.session[key]
 
@@ -31,9 +30,14 @@ def take_test(request, test_id):
         messages.info(request, 'Вы уже завершили этот тест.')
         return redirect('test_results', test_id=test.id)
 
-    # Initialize the start time if not set in session
+    # Initialize start time and question order if not set in session
     if 'test_start_time' not in request.session:
         request.session['test_start_time'] = timezone.now().isoformat()
+
+        # Create and save a randomized order of question IDs
+        question_ids = list(test.questions.values_list('id', flat=True))
+        random.shuffle(question_ids)
+        request.session['question_order'] = question_ids
 
     # Calculate time left based on fixed start time
     test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
@@ -44,8 +48,11 @@ def take_test(request, test_id):
     if time_left <= 0:
         return finish_test_and_redirect(request, test, "Время для теста истекло.")
 
+    # Load questions in randomized order
+    question_order = request.session['question_order']
     current_question_number = request.session.get('current_question_number', 1)
-    current_question = questions[current_question_number - 1]
+    current_question_id = question_order[current_question_number - 1]
+    current_question = get_object_or_404(Question, id=current_question_id)
 
     # Calculate the number of answered questions
     answered_questions_count = current_question_number - 1
@@ -91,7 +98,7 @@ def take_test(request, test_id):
         request.session['user_answers'] = user_answers
 
         # Move to the next question or finish the test
-        if current_question_number < len(questions):
+        if current_question_number < len(question_order):
             request.session['current_question_number'] = current_question_number + 1
             return redirect('take_test', test_id=test.id)
         else:
@@ -103,10 +110,11 @@ def take_test(request, test_id):
         'current_question': current_question,
         'current_question_number': current_question_number,
         'answered_questions_count': answered_questions_count,
-        'is_last_question': current_question_number == len(questions),
+        'is_last_question': current_question_number == len(question_order),
         'time_left': int(time_left),  # Use fixed `time_left` for consistent countdown
         'initial_pairs': initial_pairs
     })
+
 
 
 
