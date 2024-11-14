@@ -21,10 +21,9 @@ def take_test(request, test_id):
     # Reset session data if the test is restarted
     referer_url = request.META.get('HTTP_REFERER', '')
     if 'intro' in referer_url:
-        request.session.pop('test_start_time', None)
-        request.session.pop('current_question_number', None)
-        request.session.pop('user_answers', None)
-        request.session.pop('time_left', None)
+        for key in ['test_start_time', 'current_question_number', 'user_answers', 'time_left']:
+            if key in request.session:
+                del request.session[key]
 
     # Check if the user already completed the test
     test_result = TestResult.objects.filter(user=request.user, test=test).first()
@@ -59,9 +58,8 @@ def take_test(request, test_id):
     # Prepare initial pairs for match questions
     if current_question.question_type == 'match':
         initial_pairs = {
-            "left": [(str(answer.id), answer.text) for answer in answers],  # `text` for the left side
+            "left": [(str(answer.id), answer.text) for answer in answers],
             "right": [(str(answer.id), answer.match_pair) for answer in answers if answer.match_pair]
-            # `match_pair` for the right side
         }
         random.shuffle(initial_pairs["left"])
         random.shuffle(initial_pairs["right"])
@@ -73,6 +71,7 @@ def take_test(request, test_id):
     if request.method == 'POST':
         user_answers = request.session.get('user_answers', {})
 
+        # Collect answer based on question type
         if current_question.question_type == 'multiple':
             user_answer = request.POST.getlist(f'question_{current_question.id}_answers')
         elif current_question.question_type == 'sequence':
@@ -87,36 +86,37 @@ def take_test(request, test_id):
         else:
             user_answer = request.POST.get(f'question_{current_question.id}')
 
+        # Save user answer to session
         user_answers[str(current_question.id)] = user_answer
         request.session['user_answers'] = user_answers
 
-        # Move to next question or finish the test
+        # Move to the next question or finish the test
         if current_question_number < len(questions):
             request.session['current_question_number'] = current_question_number + 1
             return redirect('take_test', test_id=test.id)
+        else:
+            # Calculate and display the test result
+            score = evaluate_test(test, user_answers, request)
+            result_message = "Тест пройден. Ваш результат: {}%" if score >= test.passing_score else "Тест не пройден. Ваш результат: {}%"
+            messages.success(request, result_message.format(score))
 
-        # Calculate and display the test result
-        score = evaluate_test(test, user_answers, request)
-        result_message = "Тест пройден. Ваш результат: {}%" if score >= test.passing_score else "Тест не пройден. Ваш результат: {}%"
-        messages.success(request, result_message.format(score))
+            # Clean up session data after test completion
+            for key in ['user_answers', 'current_question_number', 'test_start_time', 'time_left']:
+                if key in request.session:
+                    del request.session[key]
 
-        # Clean up session data after test completion
-        del request.session['user_answers']
-        del request.session['current_question_number']
-        del request.session['test_start_time']
-        del request.session['time_left']
-
-        return redirect('test_results', test_id=test.id)
+            return redirect('test_results', test_id=test.id)
 
     return render(request, 'take_test.html', {
         'test': test,
         'current_question': current_question,
         'current_question_number': current_question_number,
-        'answered_questions_count': answered_questions_count,  # Pass answered question count
+        'answered_questions_count': answered_questions_count,
         'is_last_question': current_question_number == len(questions),
         'time_left': int(time_left),
         'initial_pairs': initial_pairs
     })
+
 
 
 
