@@ -589,23 +589,25 @@ def notify_user(user, message):
 def test_report(request, test_result_id):
     # Получаем результат теста
     test_result = get_object_or_404(TestResult, id=test_result_id)
-    # test_result = get_object_or_404(TestResult, id=test_result_id, user=request.user)
+
     # Получаем детализированные результаты каждого вопроса для данного теста
     question_results = TestQuestionResult.objects.filter(test_result=test_result)
 
-    # Формируем данные для шаблона, добавляя информацию о каждом вопросе и его вариантах ответов
+    # Формируем данные для шаблона
     questions_with_answers = []
+
     for question_result in question_results:
         answers = []
+        correct_answers = set(
+            question_result.correct_answer)  # Преобразуем правильные ответы в set для оптимизации поиска
+
         for answer_id, answer_text in question_result.options.items():
-            is_user_correct = (
-                str(answer_id) in question_result.user_answer
-                and str(answer_id) in question_result.correct_answer
-            )
+            user_answer_ids = set(question_result.user_answer)  # Также преобразуем ответы пользователя в set
+            is_user_correct = user_answer_ids & correct_answers  # Проверка на пересечение
             answers.append({
                 'text': answer_text,
-                'is_user_correct': is_user_correct,
-                'is_correct': str(answer_id) in question_result.correct_answer
+                'is_user_correct': bool(is_user_correct),  # Ответ правильный для пользователя
+                'is_correct': str(answer_id) in correct_answers  # Ответ правильный вообще
             })
 
         questions_with_answers.append({
@@ -613,8 +615,10 @@ def test_report(request, test_result_id):
             'answers': answers
         })
 
+    # Отправляем данные в шаблон
     return render(request, 'test_report.html', {
         'test_result': test_result,
         'questions_with_answers': questions_with_answers,
         'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
     })
+
