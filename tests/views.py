@@ -600,12 +600,14 @@ def test_report(request, test_result_id):
         answers = []
         correct_answers = set(question_result.correct_answer)  # Преобразуем правильные ответы в set для оптимизации поиска
 
+        # Если пользователь не ответил на вопрос, можно добавить информацию, что ответа нет
+        user_answer_ids = set(question_result.user_answer) if question_result.user_answer else set()
+        is_user_correct = bool(user_answer_ids & correct_answers)  # Проверка на пересечение
+
         for answer_id, answer_text in question_result.options.items():
-            user_answer_ids = set(question_result.user_answer)  # Также преобразуем ответы пользователя в set
-            is_user_correct = bool(user_answer_ids & correct_answers)  # Проверка на пересечение
             answers.append({
                 'text': answer_text,
-                'is_user_correct': is_user_correct,  # Ответ правильный для пользователя
+                'is_user_correct': bool(user_answer_ids & {str(answer_id)}),  # Для этого варианта ответа
                 'is_correct': str(answer_id) in correct_answers  # Ответ правильный вообще
             })
 
@@ -621,38 +623,7 @@ def test_report(request, test_result_id):
         'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
     })
 
-    # Получаем результат теста
-    test_result = get_object_or_404(TestResult, id=test_result_id)
 
-    # Получаем детализированные результаты каждого вопроса для данного теста
-    question_results = TestQuestionResult.objects.filter(test_result=test_result)
 
-    # Формируем данные для шаблона
-    questions_with_answers = []
 
-    for question_result in question_results:
-        answers = []
-        correct_answers = set(
-            question_result.correct_answer)  # Преобразуем правильные ответы в set для оптимизации поиска
-
-        for answer_id, answer_text in question_result.options.items():
-            user_answer_ids = set(question_result.user_answer)  # Также преобразуем ответы пользователя в set
-            is_user_correct = user_answer_ids & correct_answers  # Проверка на пересечение
-            answers.append({
-                'text': answer_text,
-                'is_user_correct': bool(is_user_correct),  # Ответ правильный для пользователя
-                'is_correct': str(answer_id) in correct_answers  # Ответ правильный вообще
-            })
-
-        questions_with_answers.append({
-            'question_text': question_result.question_text,
-            'answers': answers
-        })
-
-    # Отправляем данные в шаблон
-    return render(request, 'test_report.html', {
-        'test_result': test_result,
-        'questions_with_answers': questions_with_answers,
-        'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
-    })
 

@@ -13,6 +13,7 @@
         <ul>
             <li><span style="color: green;">✔️</span> - Ответ пользователя правильный</li>
             <li><span style="color: red;">❌</span> - Ответ пользователя неправильный</li>
+            <li><span style="color: gray;">⚪</span> - Ответ не выбран</li>
         </ul>
     </div>
 
@@ -30,6 +31,9 @@
                             {% elif answer.is_user_correct == false %}
                                 <!-- Красный крестик для неправильного ответа пользователя -->
                                 ❌
+                            {% elif answer.is_user_correct is not defined %}
+                                <!-- Индикатор для вопросов, на которые не был выбран ответ -->
+                                ⚪
                             {% endif %}
                         </li>
                     {% endfor %}
