@@ -27,7 +27,7 @@
                             {% if answer.is_user_correct %}
                                 <!-- Галочка для правильного ответа пользователя -->
                                 ✔️
-                            {% elif not answer.is_user_correct %}
+                            {% elif answer.is_user_correct == false %}
                                 <!-- Красный крестик для неправильного ответа пользователя -->
                                 ❌
                             {% endif %}
