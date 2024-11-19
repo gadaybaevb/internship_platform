@@ -132,7 +132,7 @@ def finish_test_and_redirect(request, test, message):
     return redirect('test_results', test_id=test.id)
 
 
-@staff_member_required
+@login_required
 def create_test(request):
     if request.method == 'POST':
         form = TestForm(request.POST)
@@ -144,7 +144,7 @@ def create_test(request):
     return render(request, 'create_test.html', {'form': form})
 
 
-@staff_member_required
+@login_required
 def add_question(request, test_id):
     test = get_object_or_404(Test, id=test_id)
 
@@ -213,7 +213,7 @@ def add_question(request, test_id):
     return render(request, 'add_question.html', {'question_form': question_form, 'formset': formset, 'test': test})
 
 
-@staff_member_required
+@login_required
 def tests_list(request):
     search_query = request.GET.get('search', '')
     tests = Test.objects.all()
@@ -232,7 +232,7 @@ def tests_list(request):
     return render(request, 'tests_list.html', {'page_obj': page_obj, 'search_query': search_query})
 
 
-@staff_member_required
+@login_required
 def edit_test(request, test_id):
     test = get_object_or_404(Test, id=test_id)
 
@@ -258,7 +258,7 @@ def delete_test(request, test_id):
     return render(request, 'delete_test_confirm.html', {'test': test})
 
 
-@staff_member_required
+@login_required
 def questions_list(request, test_id):
     search_query = request.GET.get('search', '')
     test = get_object_or_404(Test, id=test_id)
@@ -274,7 +274,7 @@ def questions_list(request, test_id):
     return render(request, 'questions_list.html', {'page_obj': page_obj, 'search_query': search_query, 'test': test})
 
 
-@staff_member_required
+@login_required
 def edit_question(request, question_id):
     question = get_object_or_404(Question, id=question_id)
     AnswerFormSet = modelformset_factory(Answer, form=AnswerForm, extra=1, can_delete=True)
