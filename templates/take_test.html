@@ -92,7 +92,7 @@
                     <p><strong>Осталось времени:</strong> <span id="timer">{{ time_left|minutes }}:{{ time_left|seconds|stringformat:"02d" }}</span></p>
                     <p><strong>Итого вопросов:</strong> {{ test.questions.count }}</p>
                     <p><strong>Отвечено:</strong> {{ answered_questions_count }}</p>
-                    <p><strong>Текущий вопрос:</strong> {{ current_question_number }} из {{ test.questions.count }}</p>
+                    <p><strong>Текущий вопрос:</strong> {{ current_question_number }} из {{ test.required_questions }}</p>
                 </div>
             </div>
         </div>
