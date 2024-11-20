@@ -37,6 +37,9 @@ def take_test(request, test_id):
 
         # Create and save a randomized order of question IDs
         question_ids = list(test.questions.values_list('id', flat=True))
+        # Select required number of questions randomly
+        if len(question_ids) > test.required_questions:
+            question_ids = random.sample(question_ids, test.required_questions)
         random.shuffle(question_ids)
         request.session['question_order'] = question_ids
 
