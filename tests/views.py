@@ -347,23 +347,25 @@ def evaluate_test(test, user_answers, request):
     max_score = 0.0
     correct_answers_count = 0
 
-    # Создаем экземпляр TestResult для хранения общей информации о тесте
+    # Создаем экземпляр TestResult
     test_result = TestResult.objects.create(
         user=request.user,
         test=test,
         score=0,  # Оценка будет обновлена позже
         correct_answers_count=0,
-        total_questions_count=test.questions.count()
+        total_questions_count=len(request.session.get('question_order', []))  # Учитываем только заданные вопросы
     )
 
-    for question in test.questions.all():
+    # Проходим только по заданным вопросам
+    for question_id in request.session.get('question_order', []):
+        question = test.questions.get(id=question_id)
         question_id_str = str(question.id)
         options = {str(answer.id): answer.text for answer in question.answers.all()}
         user_answer = user_answers.get(question_id_str) or user_answers.get(f"{question_id_str}_matches")
         is_correct = False
         correct_answer = {}
 
-        # Оценка каждого типа вопроса
+        # Обработка разных типов вопросов
         if question.question_type == 'single':
             score = evaluate_single(question, user_answer)
             correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
@@ -389,7 +391,7 @@ def evaluate_test(test, user_answers, request):
             correct_answer = {str(answer.id): answer.match_pair for answer in question.answers.all()}
             is_correct = score == 1.0
 
-        # Сохраняем детализированную информацию о каждом вопросе в TestQuestionResult
+        # Сохраняем результаты вопроса
         TestQuestionResult.objects.create(
             test_result=test_result,
             question_text=question.text,
@@ -406,12 +408,13 @@ def evaluate_test(test, user_answers, request):
         if is_correct:
             correct_answers_count += 1
 
-    # Обновляем общую оценку теста
+    # Обновляем итоговый результат теста
     test_result.score = round((total_score / max_score) * 100, 1) if max_score > 0 else 0
     test_result.correct_answers_count = correct_answers_count
     test_result.save()
 
     return test_result.score
+
 
 
 def evaluate_single(question, user_answer):
