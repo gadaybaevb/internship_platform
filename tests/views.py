@@ -542,15 +542,20 @@ def test_results(request, test_id):
         messages.error(request, 'Результат теста не найден. Сначала завершите тест.')
         return redirect('test_intro', test_id=test.id)
 
+    # Количество вопросов из session (заданные вопросы)
+    question_order = request.session.get('question_order', [])
+    total_questions_count = len(question_order) if question_order else test_result.total_questions_count
+
     test_score = Decimal(test_result.score).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)  # Округляем до двух знаков
     passing_score = Decimal(test.passing_score).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)  # Округляем до двух знаков
+
     # Далее продолжаем логику работы с результатом теста
     if test_score >= round(passing_score, 0):
         messages.success(request, 'Поздравляем! Вы прошли тест.')
     else:
         messages.error(request, 'К сожалению, вы не прошли тест.')
 
-    message = f"Стажер {user.username} ({user.full_name}) сдал зкзамен {test_result.test}, на {test_score}."
+    message = f"Стажер {user.username} ({user.full_name}) сдал экзамен {test_result.test}, на {test_score}."
     Notification.objects.create(user=user, message=message)
 
     # Отправка уведомления ментору
@@ -558,7 +563,13 @@ def test_results(request, test_id):
     if internship and internship.mentor:
         Notification.objects.create(user=internship.mentor, message=message)
 
-    return render(request, 'test_results.html', {'test_result': test_result, 'test_score': test_score, 'passing_score': passing_score})
+    return render(request, 'test_results.html', {
+        'test_result': test_result,
+        'test_score': test_score,
+        'passing_score': passing_score,
+        'total_questions_count': total_questions_count  # Передаем правильное количество вопросов
+    })
+
 
 
 @login_required
