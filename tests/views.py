@@ -614,27 +614,28 @@ def test_report(request, test_result_id):
     questions_with_answers = []
 
     for question_result in question_results:
-        answers = []
         correct_answers = set(str(ans) for ans in question_result.correct_answer)  # Преобразуем правильные ответы в set строк
         user_answer_ids = set(str(ans) for ans in question_result.user_answer) if question_result.user_answer else set()
 
-        # Если пользователь не ответил, указываем это
-        is_user_correct = bool(user_answer_ids & correct_answers) if user_answer_ids else False
-
+        # Подготавливаем ответы с указанием, правильный ли ответ
+        answers = []
         for answer_id, answer_text in question_result.options.items():
             answers.append({
                 'id': answer_id,
                 'text': answer_text,
-                'is_user_selected': str(answer_id) in user_answer_ids,  # Был ли выбран этот ответ
-                'is_correct': str(answer_id) in correct_answers  # Ответ правильный или нет
+                'is_user_selected': str(answer_id) in user_answer_ids,  # Выбран ли этот ответ
+                'is_correct': str(answer_id) in correct_answers  # Является ли он правильным
             })
+
+        # Определяем, правильный ли ответ пользователя
+        is_user_correct = correct_answers == user_answer_ids
 
         questions_with_answers.append({
             'question_text': question_result.question_text,
             'answers': answers,
-            'user_answer_ids': user_answer_ids,  # Ответы пользователя
-            'correct_answers': correct_answers,  # Правильные ответы
-            'is_user_correct': is_user_correct  # Итоговая правильность ответа
+            'user_answers': [question_result.options.get(str(ans), "Неизвестный ответ") for ans in user_answer_ids],
+            'correct_answers': [question_result.options.get(str(ans), "Неизвестный ответ") for ans in correct_answers],
+            'is_user_correct': is_user_correct
         })
 
     # Отправляем данные в шаблон
@@ -643,6 +644,7 @@ def test_report(request, test_result_id):
         'questions_with_answers': questions_with_answers,
         'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
     })
+
 
 
 

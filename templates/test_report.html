@@ -19,7 +19,7 @@
     <div class="questions">
         {% for question in questions_with_answers %}
             <div class="question mb-4">
-                <h4>{{ question.question_text }}</h4>
+                <h4>{{ forloop.counter }}. {{ question.question_text }}</h4> <!-- Номер вопроса -->
 
                 <ul>
                     {% for answer in question.answers %}
@@ -27,9 +27,9 @@
                             {{ answer.text }}
                             {% if answer.is_user_selected %}
                                 {% if answer.is_correct %}
-                                    ✔️ <!-- Правильный выбранный ответ -->
+                                    ✔️ <!-- Верный выбранный ответ -->
                                 {% else %}
-                                    ❌ <!-- Неправильный выбранный ответ -->
+                                    ❌ <!-- Неверный выбранный ответ -->
                                 {% endif %}
                             {% elif not answer.is_correct %}
                                 ⚪ <!-- Ответ не выбран -->
@@ -38,15 +38,15 @@
                     {% endfor %}
                 </ul>
 
-                <p><strong>Выбранные ответы:</strong> 
-                    {% if question.user_answer_ids %}
-                        {% for answer_id in question.user_answer_ids %}
-                            {{ question.answers|get_answer_text:answer_id }}
-                        {% endfor %}
+                <p><strong>Ответ пользователя:</strong> 
+                    {% if question.user_answers %}
+                        {{ question.user_answers|join:", " }}
                     {% else %}
                         <span style="color: gray;">Ответ не выбран</span>
                     {% endif %}
                 </p>
+
+                <p><strong>Правильный ответ:</strong> {{ question.correct_answers|join:", " }}</p>
 
                 <p>
                     <strong>Результат:</strong> 
