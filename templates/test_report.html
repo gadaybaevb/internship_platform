@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load custom_filters %}
 {% block content %}
 <div class="container mt-4">
     <h2>Отчет по результатам теста: {{ test_result.test.title }}</h2>
@@ -41,7 +41,7 @@
                 <p><strong>Выбранные ответы:</strong> 
                     {% if question.user_answer_ids %}
                         {% for answer_id in question.user_answer_ids %}
-                            {{ question.answers|filter_by_id:answer_id }}
+                            {{ question.answers|get_answer_text:answer_id }}
                         {% endfor %}
                     {% else %}
                         <span style="color: gray;">Ответ не выбран</span>
