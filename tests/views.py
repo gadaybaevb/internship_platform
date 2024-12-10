@@ -361,33 +361,34 @@ def evaluate_test(test, user_answers, request):
         question = test.questions.get(id=question_id)
         question_id_str = str(question.id)
         options = {str(answer.id): answer.text for answer in question.answers.all()}
-        user_answer = user_answers.get(question_id_str) or user_answers.get(f"{question_id_str}_matches")
+        user_answer_keys = user_answers.get(question_id_str) or user_answers.get(f"{question_id_str}_matches")
+        user_answer_values = [options.get(str(key), "Неизвестный ответ") for key in user_answer_keys] if user_answer_keys else []
         is_correct = False
         correct_answer = {}
 
         # Обработка разных типов вопросов
         if question.question_type == 'single':
-            score = evaluate_single(question, user_answer)
+            score = evaluate_single(question, user_answer_keys)
             correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
             is_correct = score == 1.0
 
         elif question.question_type == 'multiple':
-            score = evaluate_multiple(question, user_answer)
+            score = evaluate_multiple(question, user_answer_keys)
             correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
             is_correct = score == 1.0
 
         elif question.question_type == 'true_false':
-            score = evaluate_true_false(question, user_answer)
+            score = evaluate_true_false(question, user_answer_keys)
             correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
             is_correct = score == 1.0
 
         elif question.question_type == 'sequence':
-            score = evaluate_sequence(question, user_answer)
+            score = evaluate_sequence(question, user_answer_keys)
             correct_answer = {str(answer.id): answer.text for answer in question.answers.order_by('sequence_order')}
             is_correct = score == 1.0
 
         elif question.question_type == 'match':
-            score = evaluate_match(question, user_answer)
+            score = evaluate_match(question, user_answer_keys)
             correct_answer = {str(answer.id): answer.match_pair for answer in question.answers.all()}
             is_correct = score == 1.0
 
@@ -397,7 +398,7 @@ def evaluate_test(test, user_answers, request):
             question_text=question.text,
             question_type=question.question_type,
             options=options,
-            user_answer=user_answer if user_answer is not None else {},  # Запись ответа пользователя
+            user_answer={"keys": user_answer_keys, "values": user_answer_values},  # Сохраняем ключи и текстовые значения
             correct_answer=correct_answer,  # Запись правильного ответа
             is_correct=is_correct
         )
@@ -414,7 +415,6 @@ def evaluate_test(test, user_answers, request):
     test_result.save()
 
     return test_result.score
-
 
 
 def evaluate_single(question, user_answer):
@@ -614,27 +614,38 @@ def test_report(request, test_result_id):
     questions_with_answers = []
 
     for question_result in question_results:
-        correct_answers = set(str(ans) for ans in question_result.correct_answer)  # Преобразуем правильные ответы в set строк
-        user_answer_ids = set(str(ans) for ans in question_result.user_answer) if question_result.user_answer else set()
+        # Получаем правильные ответы
+        correct_answers = question_result.correct_answer.values() if question_result.correct_answer else []
 
-        # Подготавливаем ответы с указанием, правильный ли ответ
+        # Получаем пользовательские ответы
+        user_answers = [
+            answer for answer in question_result.user_answer.get("values", [])
+            if answer != "Неизвестный ответ"
+        ]
+
+        # Если ответ правильный, заменить пользовательские ответы на правильные
+        if question_result.is_correct:
+            user_answers = correct_answers
+
+        # Подготавливаем варианты ответа с указанием правильности
         answers = []
         for answer_id, answer_text in question_result.options.items():
             answers.append({
                 'id': answer_id,
                 'text': answer_text,
-                'is_user_selected': str(answer_id) in user_answer_ids,  # Выбран ли этот ответ
-                'is_correct': str(answer_id) in correct_answers  # Является ли он правильным
+                'is_user_selected': str(answer_id) in question_result.user_answer.get("keys", []),
+                'is_correct': str(answer_id) in question_result.correct_answer.keys()
             })
 
         # Определяем, правильный ли ответ пользователя
-        is_user_correct = correct_answers == user_answer_ids
+        is_user_correct = set(question_result.user_answer.get("keys", [])) == set(question_result.correct_answer.keys())
 
+        # Добавляем данные вопроса
         questions_with_answers.append({
             'question_text': question_result.question_text,
             'answers': answers,
-            'user_answers': [question_result.options.get(str(ans), "Неизвестный ответ") for ans in user_answer_ids],
-            'correct_answers': [question_result.options.get(str(ans), "Неизвестный ответ") for ans in correct_answers],
+            'user_answers': user_answers,  # Обновленные ответы пользователя
+            'correct_answers': correct_answers,
             'is_user_correct': is_user_correct
         })
 
@@ -644,6 +655,9 @@ def test_report(request, test_result_id):
         'questions_with_answers': questions_with_answers,
         'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
     })
+
+
+
 
 
 

@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-{% load custom_filters %}
 {% block content %}
 <div class="container mt-4">
     <h2>Отчет по результатам теста: {{ test_result.test.title }}</h2>
@@ -12,7 +11,6 @@
         <ul>
             <li><span style="color: green;">✔️</span> - Ответ пользователя правильный</li>
             <li><span style="color: red;">❌</span> - Ответ пользователя неправильный</li>
-            <li><span style="color: gray;">⚪</span> - Ответ не выбран</li>
         </ul>
     </div>
 
@@ -23,7 +21,7 @@
 
                 <ul>
                     {% for answer in question.answers %}
-                        <li style="color: {% if answer.is_correct %}green{% elif answer.is_user_selected %}red{% else %}gray{% endif %}">
+                        <li style="color: {% if answer.is_correct %}green{% elif answer.is_user_selected %}red{% else %}black{% endif %}">
                             {{ answer.text }}
                             {% if answer.is_user_selected %}
                                 {% if answer.is_correct %}
@@ -31,8 +29,6 @@
                                 {% else %}
                                     ❌ <!-- Неверный выбранный ответ -->
                                 {% endif %}
-                            {% elif not answer.is_correct %}
-                                ⚪ <!-- Ответ не выбран -->
                             {% endif %}
                         </li>
                     {% endfor %}
@@ -46,7 +42,13 @@
                     {% endif %}
                 </p>
 
-                <p><strong>Правильный ответ:</strong> {{ question.correct_answers|join:", " }}</p>
+                <p><strong>Правильный ответ:</strong> 
+                    {% if question.correct_answers %}
+                        {{ question.correct_answers|join:", " }}
+                    {% else %}
+                        <span style="color: gray;">Нет правильного ответа</span>
+                    {% endif %}
+                </p>
 
                 <p>
                     <strong>Результат:</strong> 
@@ -59,5 +61,5 @@
             </div>
         {% endfor %}
     </div>
-</div>
+</div> 
 {% endblock %}
