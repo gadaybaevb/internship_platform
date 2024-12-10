@@ -4,10 +4,9 @@
 <div class="container mt-4">
     <h2>Отчет по результатам теста: {{ test_result.test.title }}</h2>
     <p>Пользователь: {{ test_result.user.get_full_name }}</p>
-    <p>Дата завершения: {{ test_date }}</p> <!-- Дата теста -->
+    <p>Дата завершения: {{ test_date }}</p>
     <p>Результат: {{ test_result.score }}%</p>
 
-    <!-- Описание значков и цветов -->
     <div class="alert alert-info">
         <strong>Объяснение значков:</strong>
         <ul>
@@ -19,27 +18,45 @@
 
     <div class="questions">
         {% for question in questions_with_answers %}
-            <div class="question">
+            <div class="question mb-4">
                 <h4>{{ question.question_text }}</h4>
+
                 <ul>
                     {% for answer in question.answers %}
-                        <li style="color: {% if answer.is_correct %}green{% else %}red{% endif %}">
+                        <li style="color: {% if answer.is_correct %}green{% elif answer.is_user_selected %}red{% else %}gray{% endif %}">
                             {{ answer.text }}
-                            {% if answer.is_user_correct %}
-                                <!-- Галочка для правильного ответа пользователя -->
-                                ✔️
-                            {% elif answer.is_user_correct == false %}
-                                <!-- Красный крестик для неправильного ответа пользователя -->
-                                ❌
-                            {% elif answer.is_user_correct is not defined %}
-                                <!-- Индикатор для вопросов, на которые не был выбран ответ -->
-                                ⚪
+                            {% if answer.is_user_selected %}
+                                {% if answer.is_correct %}
+                                    ✔️ <!-- Правильный выбранный ответ -->
+                                {% else %}
+                                    ❌ <!-- Неправильный выбранный ответ -->
+                                {% endif %}
+                            {% elif not answer.is_correct %}
+                                ⚪ <!-- Ответ не выбран -->
                             {% endif %}
                         </li>
                     {% endfor %}
                 </ul>
+
+                <p><strong>Выбранные ответы:</strong> 
+                    {% if question.user_answer_ids %}
+                        {% for answer_id in question.user_answer_ids %}
+                            {{ question.answers|filter_by_id:answer_id }}
+                        {% endfor %}
+                    {% else %}
+                        <span style="color: gray;">Ответ не выбран</span>
+                    {% endif %}
+                </p>
+
+                <p>
+                    <strong>Результат:</strong> 
+                    {% if question.is_user_correct %}
+                        <span style="color: green;">Правильно</span>
+                    {% else %}
+                        <span style="color: red;">Неправильно</span>
+                    {% endif %}
+                </p>
             </div>
-            <hr>
         {% endfor %}
     </div>
 </div>

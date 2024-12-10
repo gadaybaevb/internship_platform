@@ -615,22 +615,26 @@ def test_report(request, test_result_id):
 
     for question_result in question_results:
         answers = []
-        correct_answers = set(question_result.correct_answer)  # Преобразуем правильные ответы в set для оптимизации поиска
+        correct_answers = set(str(ans) for ans in question_result.correct_answer)  # Преобразуем правильные ответы в set строк
+        user_answer_ids = set(str(ans) for ans in question_result.user_answer) if question_result.user_answer else set()
 
-        # Если пользователь не ответил на вопрос, можно добавить информацию, что ответа нет
-        user_answer_ids = set(question_result.user_answer) if question_result.user_answer else set()
-        is_user_correct = bool(user_answer_ids & correct_answers)  # Проверка на пересечение
+        # Если пользователь не ответил, указываем это
+        is_user_correct = bool(user_answer_ids & correct_answers) if user_answer_ids else False
 
         for answer_id, answer_text in question_result.options.items():
             answers.append({
+                'id': answer_id,
                 'text': answer_text,
-                'is_user_correct': bool(user_answer_ids & {str(answer_id)}),  # Для этого варианта ответа
-                'is_correct': str(answer_id) in correct_answers  # Ответ правильный вообще
+                'is_user_selected': str(answer_id) in user_answer_ids,  # Был ли выбран этот ответ
+                'is_correct': str(answer_id) in correct_answers  # Ответ правильный или нет
             })
 
         questions_with_answers.append({
             'question_text': question_result.question_text,
-            'answers': answers
+            'answers': answers,
+            'user_answer_ids': user_answer_ids,  # Ответы пользователя
+            'correct_answers': correct_answers,  # Правильные ответы
+            'is_user_correct': is_user_correct  # Итоговая правильность ответа
         })
 
     # Отправляем данные в шаблон
