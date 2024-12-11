@@ -429,8 +429,6 @@ def intern_materials(request):
     })
 
 
-
-
 def check_deadlines(user):
     # Получаем все активные этапы стажировки для стажера
     stages_in_progress = StageProgress.objects.filter(intern=user, completed=False)
@@ -471,21 +469,27 @@ def mark_material_completed(request, material_id):
     )
 
     if request.method == 'POST':
-        # Меняем статус на "Ожидание подтверждения" после отметки стажером
-        material_progress.status = 'pending'
-        material_progress.completed = False  # Ожидаем подтверждения от ментора
-        material_progress.completion_date = timezone.now() + timedelta(hours=5)  # Устанавливаем дату завершения со смещением на 5 часов
-        material_progress.save()
+        feedback = request.POST.get('feedback', '').strip()  # Получаем отзыв из формы
+        if feedback:
+            # Сохраняем статус и отзыв
+            material_progress.feedback = feedback
+            material_progress.status = 'pending'
+            material_progress.completed = False  # Ожидаем подтверждения от ментора
+            material_progress.completion_date = timezone.now()  # Устанавливаем дату завершения
+            material_progress.save()
 
-        # Отправляем уведомление ментору
-        mentor = Internship.objects.filter(intern=intern).first().mentor
-        if mentor:
-            Notification.objects.create(
-                user=mentor,
-                message=f"Стажер {intern.full_name} отметил материал '{material.title}' как завершённый. Требуется подтверждение."
-            )
+            # Отправляем уведомление ментору
+            internship = Internship.objects.filter(intern=intern).first()
+            mentor = internship.mentor if internship else None
+            if mentor:
+                Notification.objects.create(
+                    user=mentor,
+                    message=f"Стажер {intern.full_name} отметил материал '{material.title}' как завершённый. Отзыв: {feedback}. Требуется подтверждение."
+                )
 
-        messages.success(request, 'Материал был отмечен как завершённый, ожидается подтверждение ментора.')
+            messages.success(request, 'Материал был отмечен как завершённый, ожидается подтверждение ментора.')
+        else:
+            messages.error(request, 'Пожалуйста, оставьте отзыв о материале.')
 
     return redirect('intern_materials')
 
@@ -512,7 +516,8 @@ def mentor_view_intern_materials(request, intern_id):
         material_list.append({
             'material': material,
             'status': status,
-            'progress_id': material_progress.id if material_progress else None
+            'progress_id': material_progress.id if material_progress else None,
+            'feedback': material_progress.feedback if material_progress else None,  # Отзыв интерна
         })
 
     return render(request, 'mentor_view_intern_materials.html', {
@@ -523,23 +528,41 @@ def mentor_view_intern_materials(request, intern_id):
 
 @login_required
 def confirm_material_completion(request, progress_id):
-    # Получаем запись о прогрессе по материалу
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
+    print(f"Progress ID: {material_progress.id}")  # Отладка
 
-    # Ментор может подтвердить материал
     if request.user.role == 'mentor' and request.method == 'POST':
-        material_progress.status = 'completed'  # Обновляем статус на завершённый
-        material_progress.completed = True
-        material_progress.confirmation_date = timezone.now() + timedelta(hours=5)  # Устанавливаем дату подтверждения со смещением на 5 часов
-        material_progress.save()
+        action = request.POST.get('action')
+        print(f"Action: {action}")  # Отладка
+        if action == 'approve':
+            material_progress.status = 'completed'
+            material_progress.completed = True
+            material_progress.confirmation_date = timezone.now()
+            material_progress.save()
+            print("Material approved")  # Отладка
+            messages.success(request, 'Материал успешно подтверждён как завершённый.')
+        elif action == 'reject':
+            rejection_reason = request.POST.get('rejection_reason', '').strip()
+            print(f"Rejection reason: {rejection_reason}")  # Отладка
+            if rejection_reason:
+                Notification.objects.create(
+                    user=material_progress.intern,
+                    message=f"Ваш материал '{material_progress.material.title}' отклонён. Причина: {rejection_reason}"
+                )
+                material_progress.status = 'not_started'
+                material_progress.feedback = None
+                material_progress.save()
+                print("Material rejected")  # Отладка
+                messages.success(request, 'Материал отклонён, уведомление отправлено стажёру.')
+            else:
+                print("Rejection reason not provided")  # Отладка
+                messages.error(request, 'Пожалуйста, укажите причину отклонения материала.')
+    else:
+        print("Invalid user role or request method")  # Отладка
 
-        # Проверяем завершение этапа после подтверждения материала
-        #check_stage_completion(material_progress.intern, material_progress.material.stage)
+    return redirect('dashboard')
 
-        messages.success(request, 'Материал успешно подтверждён как завершённый.')
-        return redirect('dashboard')  # Перенаправляем ментора на его дашборд
 
-    return redirect('mentor_view_intern_materials', intern_id=material_progress.intern.id)
 
 
 @login_required
@@ -899,6 +922,7 @@ def intern_report_export(request, intern_id):
             '№': index,  # Нумерация
             'Стажер': intern.full_name,
             'Материал': record.material.title if record.material else "Не указан",
+            'Отзыв': record.feedback if record.feedback else "Отзыв отсутствует",
             'Дата завершения': completion_time.strftime('%Y-%m-%d %H:%M') if completion_time else "Не завершен",
             'Дата подтверждения': confirmation_time.strftime('%Y-%m-%d %H:%M') if confirmation_time else "Не подтвержден",
             'Время на подтверждение': str(time_difference) if time_difference else "Нет данных"
@@ -931,7 +955,7 @@ def intern_report_export(request, intern_id):
         # Добавляем заголовок и объединяем ячейки
         title = f"Отчет стажировки ({intern.full_name}) на {today}"
         sheet['A1'] = title
-        sheet.merge_cells('A1:F1')
+        sheet.merge_cells('A1:H1')  # Объединяем ячейки по ширине таблицы
         sheet['A1'].font = header_font
         sheet['A1'].alignment = alignment
 
@@ -957,6 +981,7 @@ def intern_report_export(request, intern_id):
             sheet.column_dimensions[get_column_letter(col_num)].width = adjusted_width
 
     return response
+
 
 
 @login_required

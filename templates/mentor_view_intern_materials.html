@@ -8,6 +8,7 @@
             <tr>
                 <th>Название материала</th>
                 <th>Этап</th>
+                <th>Отзыв</th>
                 <th>Статус</th>
                 <th>Действие</th>
             </tr>
@@ -17,6 +18,17 @@
             <tr>
                 <td>{{ item.material.title }}</td>
                 <td>Этап {{ item.material.stage }}</td>
+                <td>
+                    {% if item.feedback %}
+                        <!-- Ссылка на отзыв -->
+                        <a href="#" class="text-primary" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-feedback="{{ item.feedback }}">
+                            Отзыв стажера
+                        </a>
+                    {% else %}
+                        <span class="text-muted">Отзыв отсутствует</span>
+                    {% endif %}
+                </td>
+
                 <td>
                     {% if item.status == 'Завершён' %}
                         <span class="text-success">Завершён</span>
@@ -28,15 +40,113 @@
                 </td>
                 <td>
                     {% if item.status == 'Ожидание' %}
-                        <form method="post" action="{% url 'confirm_material_completion' item.progress_id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-success">Подтвердить</button>
-                        </form>
+                        <!-- Кнопка подтверждения -->
+                        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-progress-id="{{ item.progress_id }}">
+                            Подтвердить
+                        </button>
+                        <!-- Кнопка отклонения -->
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal" data-progress-id="{{ item.progress_id }}">
+                            Отклонить
+                        </button>
                     {% endif %}
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Модальное окно для отзыва -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="feedbackModalLabel">Отзыв стажера</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="feedbackContent">
+                    <!-- Отзыв будет загружаться сюда -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" id="confirmForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve"> <!-- Скрытое поле для действия -->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="confirmModalLabel">Подтверждение материала</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-success">Подтвердить</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно отклонения -->
+    <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" id="rejectForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject"> <!-- Скрытое поле для действия -->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="rejectModalLabel">Отклонение материала</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea name="rejection_reason" class="form-control" placeholder="Укажите причину отклонения" required></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-danger">Отклонить</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Скрипт для модальных окон -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const feedbackModal = document.getElementById('feedbackModal');
+            const confirmModal = document.getElementById('confirmModal');
+            const rejectModal = document.getElementById('rejectModal');
+            const confirmForm = document.getElementById('confirmForm');
+            const rejectForm = document.getElementById('rejectForm');
+
+            // Обработчик для модального окна с отзывом
+            feedbackModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const feedback = button.getAttribute('data-feedback');
+                const feedbackContent = feedbackModal.querySelector('#feedbackContent');
+                feedbackContent.textContent = feedback || 'Отзыв отсутствует';
+            });
+
+            // Обработчик для подтверждения
+            confirmModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const progressId = button.getAttribute('data-progress-id');
+                confirmForm.action = `{% url 'confirm_material_completion' 0 %}`.replace(0, progressId);
+            });
+
+            // Обработчик для отклонения
+            rejectModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const progressId = button.getAttribute('data-progress-id');
+                rejectForm.action = `{% url 'confirm_material_completion' 0 %}`.replace(0, progressId);
+            });
+        });
+    </script>
 </div>
 {% endblock %}

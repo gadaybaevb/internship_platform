@@ -60,11 +60,10 @@
                 </td>
                 <td>
                     {% if item.status == 'not_started' %}
-                        <!-- Кнопка "Прошел" для стажера -->
-                        <form method="post" action="{% url 'mark_material_completed' item.material.id %}" class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-primary btn-sm">Прошел</button>
-                        </form>
+                        <!-- Кнопка "Прошел" -->
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-material-id="{{ item.material.id }}" data-material-title="{{ item.material.title }}">
+                            Прошел
+                        </button>
                     {% elif item.status == 'pending' %}
                         <span class="text-muted">Ожидание подтверждения</span>
                     {% endif %}
@@ -74,86 +73,45 @@
         </tbody>
     </table>
 
-    <!-- Аккордеон для завершенных материалов -->
-    <div class="accordion mt-4" id="completedMaterialsAccordion">
-        <div class="accordion-item">
-            <h2 class="accordion-header" id="headingOne">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                    Завершенные материалы
-                </button>
-            </h2>
-            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#completedMaterialsAccordion">
-                <div class="accordion-body">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Название материала</th>
-                                <th>Файл</th>
-                                <th>Этап</th>
-                                <th>Статус</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in completed_materials %}
-                            <tr>
-                                <td>
-                                    <a href="#" data-bs-toggle="modal" data-bs-target="#materialModal" data-title="{{ item.material.title }}" data-description="{{ item.material.description }}">
-                                        {{ item.material.title }}
-                                    </a>
-                                </td>
-                                <td>
-                                    {% if item.material.file %}
-                                        <a href="{{ item.material.file.url }}">{{ item.material.file.name }}</a>
-                                    {% else %}
-                                        <span class="text-warning">Нет файла</span>
-                                    {% endif %}
-                                </td>
-                                <td>Этап {{ item.material.stage }}</td>
-                                <td><span class="text-success">{{ item.status }}</span></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно для информации о материале -->
-    <div class="modal fade" id="materialModal" tabindex="-1" aria-labelledby="materialModalLabel" aria-hidden="true">
+    <!-- Модальное окно для отзыва -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="materialModalLabel">Название материала</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <form method="post" id="feedbackForm">
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="feedbackModalLabel">Отзыв о материале</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="material_id" id="materialId">
+                        <p><strong>Материал:</strong> <span id="materialTitle"></span></p>
+                        <textarea name="feedback" class="form-control" placeholder="Опишите, что вы поняли из материала" required></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Отправить</button>
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <p id="materialDescription">Описание материала</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                </div>
-            </div>
+            </form>
         </div>
     </div>
 
-    <!-- Скрипт для заполнения модального окна -->
+    <!-- Скрипт для передачи данных в модальное окно -->
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const materialModal = document.getElementById('materialModal');
+        document.addEventListener("DOMContentLoaded", function () {
+            const feedbackModal = document.getElementById('feedbackModal');
+            const feedbackForm = document.getElementById('feedbackForm');
             
-            materialModal.addEventListener('show.bs.modal', function (event) {
-                const link = event.relatedTarget;
-                const title = link.getAttribute('data-title');
-                const description = link.getAttribute('data-description');
+            feedbackModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const materialId = button.getAttribute('data-material-id');
+                const materialTitle = button.getAttribute('data-material-title');
 
-                const modalTitle = materialModal.querySelector('.modal-title');
-                const modalDescription = materialModal.querySelector('#materialDescription');
+                feedbackModal.querySelector('#materialId').value = materialId;
+                feedbackModal.querySelector('#materialTitle').textContent = materialTitle;
 
-                if (modalTitle && modalDescription) {
-                    modalTitle.textContent = title || 'Название отсутствует';
-                    modalDescription.textContent = description || 'Описание отсутствует';
-                }
+                feedbackForm.action = `{% url 'mark_material_completed' 0 %}`.replace(0, materialId);
             });
         });
     </script>

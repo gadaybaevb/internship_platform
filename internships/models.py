@@ -94,7 +94,7 @@ class MaterialProgress(models.Model):
     completed = models.BooleanField(default=False, verbose_name='Закончил')
     mentor_confirmed = models.BooleanField(default=False, verbose_name='Подтверждение ментора')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='not_started', verbose_name='Статус')
-
+    feedback = models.TextField(null=True, blank=True, verbose_name='Отзыв стажера')  # Отзыв интерна
     # Дата завершения и подтверждения можно хранить как дополнительные поля
     completion_date = models.DateTimeField(null=True, blank=True, verbose_name='Дата окончания')
     confirmation_date = models.DateTimeField(null=True, blank=True, verbose_name='Дата подтверждения')
