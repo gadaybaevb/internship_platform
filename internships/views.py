@@ -982,6 +982,8 @@ def intern_report_export(request, intern_id):
                 # Специальное форматирование для столбца "Отзывы" (столбец D)
                 if cell.column == 4:  # Номер столбца с "Отзывы"
                     cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+                if cell.column == 3:  # Для столбца "Материал"
+                    cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
         # Устанавливаем автоширину для всех столбцов, кроме столбца "Отзывы"
         for col_num, column_cells in enumerate(sheet.columns, 1):
