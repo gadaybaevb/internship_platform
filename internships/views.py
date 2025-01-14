@@ -23,6 +23,7 @@ from django.contrib.messages import get_messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 import pandas as pd
+from unidecode import unidecode
 from django.http import HttpResponse
 from openpyxl import Workbook
 from django.contrib.auth.decorators import user_passes_test
@@ -494,7 +495,6 @@ def mark_material_completed(request, material_id):
     return redirect('intern_materials')
 
 
-
 @login_required
 def mentor_view_intern_materials(request, intern_id):
     intern = get_object_or_404(CustomUser, id=intern_id)
@@ -561,8 +561,6 @@ def confirm_material_completion(request, progress_id):
         print("Invalid user role or request method")  # Отладка
 
     return redirect('dashboard')
-
-
 
 
 @login_required
@@ -931,10 +929,17 @@ def intern_report_export(request, intern_id):
     # Создаем DataFrame для отчета
     df = pd.DataFrame(report_data)
 
-    # Подготавливаем ответ для скачивания Excel-файла с именем стажера и датой
+    # Преобразуем имя стажера в латиницу
+    sanitized_name = unidecode(intern.full_name).strip().replace(" ", "_").replace("/", "_")
     today = date.today().strftime('%Y-%m-%d')
+    filename = f"{sanitized_name}_{today}.xlsx"
+
+    # Создаем объект ответа
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename="report_{intern.full_name}_{today}.xlsx"'
+    response['Content-Disposition'] = f"attachment; filename=\"{filename}\"; filename*=UTF-8''{filename}"
+
+    # Отладка
+    print(f"Generated filename: {filename}")
 
     # Сохраняем данные в Excel и настраиваем стили
     with pd.ExcelWriter(response, engine='openpyxl') as writer:
@@ -974,14 +979,20 @@ def intern_report_export(request, intern_id):
                 cell.alignment = alignment
                 cell.border = thin_border
 
-        # Устанавливаем автоширину для всех столбцов
+                # Специальное форматирование для столбца "Отзывы" (столбец D)
+                if cell.column == 4:  # Номер столбца с "Отзывы"
+                    cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+        # Устанавливаем автоширину для всех столбцов, кроме столбца "Отзывы"
         for col_num, column_cells in enumerate(sheet.columns, 1):
-            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
-            adjusted_width = max_length + 2
-            sheet.column_dimensions[get_column_letter(col_num)].width = adjusted_width
+            if col_num == 4:  # Для столбца "Отзывы"
+                sheet.column_dimensions[get_column_letter(col_num)].width = 60
+            else:
+                max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
+                adjusted_width = max_length + 2
+                sheet.column_dimensions[get_column_letter(col_num)].width = adjusted_width
 
     return response
-
 
 
 @login_required
