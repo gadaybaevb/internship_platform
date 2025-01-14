@@ -989,6 +989,8 @@ def intern_report_export(request, intern_id):
         for col_num, column_cells in enumerate(sheet.columns, 1):
             if col_num == 4:  # Для столбца "Отзывы"
                 sheet.column_dimensions[get_column_letter(col_num)].width = 60
+            elif col_num == 3:  # Для столбца "Материал"
+                sheet.column_dimensions[get_column_letter(col_num)].width = 60
             else:
                 max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
                 adjusted_width = max_length + 2
