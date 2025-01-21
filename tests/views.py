@@ -630,16 +630,16 @@ def test_report(request, test_result_id):
         # Подготавливаем варианты ответа с указанием правильности
         answers = []
         user_answer_data = question_result.user_answer or {}  # Гарантируем, что это словарь
-        user_answer_keys = user_answer_data.get("keys")  # Получаем ключи
 
-        if not isinstance(user_answer_keys, list):  # Если не список, заменяем на пустой
+        user_answer_keys = user_answer_data.get("keys")  # Получаем ключи
+        if not isinstance(user_answer_keys, list):  # Если это None или не список, заменяем на []
             user_answer_keys = []
 
         for answer_id, answer_text in question_result.options.items():
             answers.append({
                 'id': answer_id,
                 'text': answer_text,
-                'is_user_selected': str(answer_id) in user_answer_keys,  # Теперь user_answer_keys точно список
+                'is_user_selected': str(answer_id) in user_answer_keys,  # Теперь user_answer_keys – список
                 'is_correct': str(answer_id) in (question_result.correct_answer or {}).keys()
             })
 
