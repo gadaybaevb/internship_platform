@@ -615,12 +615,12 @@ def test_report(request, test_result_id):
 
     for question_result in question_results:
         # Получаем правильные ответы
-        correct_answers = question_result.correct_answer.values() if question_result.correct_answer else []
+        correct_answers = list(question_result.correct_answer.values()) if question_result.correct_answer else []
 
         # Получаем пользовательские ответы
+        user_answer_data = question_result.user_answer or {}  # Гарантируем, что это словарь
         user_answers = [
-            answer for answer in question_result.user_answer.get("values", [])
-            if answer != "Неизвестный ответ"
+            answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
         ]
 
         # Если ответ правильный, заменить пользовательские ответы на правильные
@@ -629,22 +629,26 @@ def test_report(request, test_result_id):
 
         # Подготавливаем варианты ответа с указанием правильности
         answers = []
-        user_answer_data = question_result.user_answer or {}  # Гарантируем, что это словарь
+        user_answer_keys = user_answer_data.get("keys", [])
 
-        user_answer_keys = user_answer_data.get("keys")  # Получаем ключи
-        if not isinstance(user_answer_keys, list):  # Если это None или не список, заменяем на []
+        # Если user_answer_keys равно None, заменяем его на пустой список
+        if not isinstance(user_answer_keys, list):
             user_answer_keys = []
 
         for answer_id, answer_text in question_result.options.items():
             answers.append({
                 'id': answer_id,
                 'text': answer_text,
-                'is_user_selected': str(answer_id) in user_answer_keys,  # Теперь user_answer_keys – список
+                'is_user_selected': str(answer_id) in user_answer_keys,  # Теперь user_answer_keys точно список
                 'is_correct': str(answer_id) in (question_result.correct_answer or {}).keys()
             })
 
         # Определяем, правильный ли ответ пользователя
-        is_user_correct = set(question_result.user_answer.get("keys", [])) == set(question_result.correct_answer.keys())
+        correct_answer_keys = (question_result.correct_answer or {}).keys()
+        user_answer_keys_set = set(user_answer_keys) if isinstance(user_answer_keys, list) else set()
+        correct_answer_keys_set = set(correct_answer_keys) if isinstance(correct_answer_keys, list) else set()
+
+        is_user_correct = user_answer_keys_set == correct_answer_keys_set
 
         # Добавляем данные вопроса
         questions_with_answers.append({
@@ -661,6 +665,7 @@ def test_report(request, test_result_id):
         'questions_with_answers': questions_with_answers,
         'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
     })
+
 
 
 
