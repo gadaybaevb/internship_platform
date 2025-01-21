@@ -629,12 +629,13 @@ def test_report(request, test_result_id):
 
         # Подготавливаем варианты ответа с указанием правильности
         answers = []
+        user_answer_data = question_result.user_answer or {}  # Гарантируем, что это словарь
         for answer_id, answer_text in question_result.options.items():
             answers.append({
                 'id': answer_id,
                 'text': answer_text,
-                'is_user_selected': str(answer_id) in question_result.user_answer.get("keys", []),
-                'is_correct': str(answer_id) in question_result.correct_answer.keys()
+                'is_user_selected': str(answer_id) in user_answer_data.get("keys", []),
+                'is_correct': str(answer_id) in (question_result.correct_answer or {}).keys()
             })
 
         # Определяем, правильный ли ответ пользователя
