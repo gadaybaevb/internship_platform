@@ -665,7 +665,6 @@ def test_report(request, test_result_id):
             'correct_answers': correct_answers,
             'is_user_correct': is_user_correct
         })
-
     # Отправляем данные в шаблон
     return render(request, 'test_report.html', {
         'test_result': test_result,
