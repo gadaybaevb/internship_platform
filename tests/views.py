@@ -366,9 +366,17 @@ def evaluate_test(test, user_answers, request):
         is_correct = False
         correct_answer = {}
 
+        # Преобразуем keys в список, если он строка
+        if isinstance(user_answer_keys, str):
+            user_answer_keys = [user_answer_keys]
+
+            # Если values пустые или содержат только "Неизвестный ответ", заменяем на keys
+        if not user_answer_values or all(v == "Неизвестный ответ" for v in user_answer_values):
+            user_answer_values = [options.get(k, "Неизвестный ответ") for k in user_answer_keys]
+
         # Обработка разных типов вопросов
         if question.question_type == 'single':
-            score = evaluate_single(question, user_answer_keys)
+            score = evaluate_single(question, user_answer_values[0])
             correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
             is_correct = score == 1.0
 
@@ -423,9 +431,10 @@ def evaluate_single(question, user_answer):
     # Проверяем, что пользователь выбрал ответ
     if user_answer is None:
         return 0.0  # Если ответа нет, возвращаем 0 баллов
-
+    print(user_answer, type(user_answer))
+    print(correct_answer, type(user_answer))
     try:
-        if correct_answer and correct_answer.id == int(user_answer):
+        if str(correct_answer) == str(user_answer):
             return 1.0  # Верный ответ, полный балл
     except (ValueError, TypeError):
         print("Ошибка преобразования ответа в число")
@@ -633,31 +642,13 @@ def test_report(request, test_result_id):
         user_answers = [
             answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
         ]
-        print(user_answers)
+        print("ываыва,", user_answer_data.get("values", []))
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
             user_answers = correct_answers
 
         # Подготавливаем варианты ответа с указанием правильности
         answers = []
-
-        # # Получаем user_answer_keys
-        # user_answer_keys = user_answer_data.get("keys", [])
-        #
-        # # Если "keys" - это строка, то преобразуем в список
-        # if isinstance(user_answer_keys, str):
-        #     user_answer_keys = [user_answer_keys]
-        # elif not isinstance(user_answer_keys, list):
-        #     # Если "keys" не строка и не список (например, None), то преобразуем в пустой список
-        #     user_answer_keys = []        # # Получаем user_answer_keys
-        # user_answer_keys = user_answer_data.get("keys", [])
-        #
-        # # Если "keys" - это строка, то преобразуем в список
-        # if isinstance(user_answer_keys, str):
-        #     user_answer_keys = [user_answer_keys]
-        # elif not isinstance(user_answer_keys, list):
-        #     # Если "keys" не строка и не список (например, None), то преобразуем в пустой список
-        #     user_answer_keys = []
 
         # Если user_answer_keys равно None, заменяем его на пустой список
         for answer_id, answer_text in question_result.options.items():
