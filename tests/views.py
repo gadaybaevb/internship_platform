@@ -631,7 +631,7 @@ def test_report(request, test_result_id):
 
         # Фильтруем "values", убирая "Неизвестный ответ"
         user_answers = [
-            answer for answer in user_answer_data.get("keys", []) if answer != "Неизвестный ответ"
+            answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
         ]
         print(user_answers)
         # Если ответ правильный, заменить пользовательские ответы на правильные
