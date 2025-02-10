@@ -623,9 +623,9 @@ def test_report(request, test_result_id):
         # Получаем пользовательские ответы
         user_answer_data = question_result.user_answer or {}  # Гарантируем, что это словарь
         user_answers = [
-            answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
+            answer for answer in user_answer_data.get("keys", []) if answer != "Неизвестный ответ"
         ]
-
+        print(user_answers)
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
             user_answers = correct_answers
