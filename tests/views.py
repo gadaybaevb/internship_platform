@@ -631,7 +631,7 @@ def test_report(request, test_result_id):
 
         # Фильтруем "values", убирая "Неизвестный ответ"
         user_answers = [
-            answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
+            answer for answer in user_answer_data.get("keys", []) if answer != "Неизвестный ответ"
         ]
         print(user_answers)
         # Если ответ правильный, заменить пользовательские ответы на правильные
@@ -641,15 +641,15 @@ def test_report(request, test_result_id):
         # Подготавливаем варианты ответа с указанием правильности
         answers = []
 
-        # Получаем user_answer_keys
-        user_answer_keys = user_answer_data.get("keys", [])
-
-        # Если "keys" - это строка, то преобразуем в список
-        if isinstance(user_answer_keys, str):
-            user_answer_keys = [user_answer_keys]
-        elif not isinstance(user_answer_keys, list):
-            # Если "keys" не строка и не список (например, None), то преобразуем в пустой список
-            user_answer_keys = []
+        # # Получаем user_answer_keys
+        # user_answer_keys = user_answer_data.get("keys", [])
+        #
+        # # Если "keys" - это строка, то преобразуем в список
+        # if isinstance(user_answer_keys, str):
+        #     user_answer_keys = [user_answer_keys]
+        # elif not isinstance(user_answer_keys, list):
+        #     # Если "keys" не строка и не список (например, None), то преобразуем в пустой список
+        #     user_answer_keys = []
 
         # Если user_answer_keys равно None, заменяем его на пустой список
         for answer_id, answer_text in question_result.options.items():
