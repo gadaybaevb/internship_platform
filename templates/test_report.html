@@ -34,7 +34,7 @@
                     {% endfor %}
                 </ul>
 
-                <p><strong>Ответ пользователя:</strong> 
+                <p><strong>Ответ пользователя:</strong>
                     {% if question.user_answers %}
                         {{ question.user_answers|join:", " }}
                     {% else %}
@@ -42,7 +42,7 @@
                     {% endif %}
                 </p>
 
-                <p><strong>Правильный ответ:</strong> 
+                <p><strong>Правильный ответ:</strong>
                     {% if question.correct_answers %}
                         {{ question.correct_answers|join:", " }}
                     {% else %}
@@ -50,8 +50,8 @@
                     {% endif %}
                 </p>
                 <p>
-                    <strong>Результат:</strong> 
-                    {% if question.is_correct %}
+                    <strong>Результат:</strong>
+                    {% if question.is_user_correct %}
                         <span style="color: green;">Правильно</span>
                     {% else %}
                         <span style="color: red;">Неправильно</span>
@@ -60,5 +60,5 @@
             </div>
         {% endfor %}
     </div>
-</div> 
+</div>
 {% endblock %}

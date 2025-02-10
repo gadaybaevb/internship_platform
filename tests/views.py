@@ -616,19 +616,14 @@ def test_report(request, test_result_id):
 
     # Формируем данные для шаблона
     questions_with_answers = []
-
     for question_result in question_results:
         # Получаем правильные ответы
         correct_answers = list(question_result.correct_answer.values()) if question_result.correct_answer else []
-        print(question_result)
-        print(correct_answers)
         # Получаем пользовательские ответы
         user_answer_data = question_result.user_answer or {}  # Гарантируем, что это словарь
         user_answers = [
             answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
         ]
-        print(user_answer_data)
-        print(user_answers)
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
             user_answers = correct_answers
@@ -641,7 +636,6 @@ def test_report(request, test_result_id):
         # Если user_answer_keys равно None, заменяем его на пустой список
         if not isinstance(user_answer_keys, list):
             user_answer_keys = []
-
         for answer_id, answer_text in question_result.options.items():
             answers.append({
                 'id': answer_id,
@@ -651,12 +645,17 @@ def test_report(request, test_result_id):
             })
 
         # Определяем, правильный ли ответ пользователя
-        correct_answer_keys = (question_result.correct_answer or {}).keys()
-        user_answer_keys_set = set(user_answer_keys) if isinstance(user_answer_keys, list) else set()
-        correct_answer_keys_set = set(correct_answer_keys) if isinstance(correct_answer_keys, list) else set()
+        correct_answer_keys = list((question_result.correct_answer or {}).keys())  # Преобразуем в список
+        user_answer_keys_set = set(user_answer_keys)  # Преобразуем в множество
+        correct_answer_keys_set = set(correct_answer_keys)  # Преобразуем в множество
+
+        # Сравниваем множества
+        print('correct_answer_keys ', correct_answer_keys)
+        print('user_answer_keys_set ', user_answer_keys_set)
+        print('correct_answer_keys_set ', correct_answer_keys_set)
 
         is_user_correct = user_answer_keys_set == correct_answer_keys_set
-
+        print(is_user_correct)
         # Добавляем данные вопроса
         questions_with_answers.append({
             'question_text': question_result.question_text,
