@@ -634,6 +634,10 @@ def test_report(request, test_result_id):
             answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
         ]
 
+        # Печать каждого ответа
+        for answer in user_answers:
+            print(answer)
+
         # Если все ответы "Неизвестный ответ", можно добавить дополнительную логику (например, оставить пустым или добавить сообщение)
         if not user_answers:
             user_answers = ["Ответ не выбран"]
@@ -669,7 +673,7 @@ def test_report(request, test_result_id):
         questions_with_answers.append({
             'question_text': question_result.question_text,
             'answers': answers,
-            'user_answers': user_answers,  # Обновленные ответы пользователя
+            'user_answers': user_answer_keys_set,  # Обновленные ответы пользователя
             'correct_answers': correct_answers,
             'is_user_correct': is_user_correct
         })
