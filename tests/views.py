@@ -629,18 +629,20 @@ def test_report(request, test_result_id):
         elif not isinstance(user_answer_keys, list):
             user_answer_keys = []  # Если "keys" не строка и не список (например, None), то превращаем в пустой список
 
+        # Получаем значения из keys и values
+        user_answer_keys = user_answer_data.get("keys", [])
+        user_answer_values = user_answer_data.get("values", [])
+
         # Фильтруем "values", убирая "Неизвестный ответ"
         user_answers = [
-            answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
+            answer for answer in user_answer_values if answer != "Неизвестный ответ"
         ]
 
-        # Печать каждого ответа
-        for answer in user_answers:
-            print(answer)
+        # Если все ответы в values это "Неизвестный ответ", берем значение из keys
+        if not user_answers:  # Если user_answers пустой
+            user_answers = user_answer_keys  # Используем keys как ответы
 
-        # Если все ответы "Неизвестный ответ", можно добавить дополнительную логику (например, оставить пустым или добавить сообщение)
-        if not user_answers:
-            user_answers = ["Ответ не выбран"]
+        print(user_answers)
 
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
@@ -673,7 +675,7 @@ def test_report(request, test_result_id):
         questions_with_answers.append({
             'question_text': question_result.question_text,
             'answers': answers,
-            'user_answers': user_answer_keys_set,  # Обновленные ответы пользователя
+            'user_answers': user_answers,  # Обновленные ответы пользователя
             'correct_answers': correct_answers,
             'is_user_correct': is_user_correct
         })
