@@ -628,11 +628,12 @@ def test_report(request, test_result_id):
             user_answer_keys = [user_answer_keys]  # Преобразуем строку в список
         elif not isinstance(user_answer_keys, list):
             user_answer_keys = []  # Если "keys" не строка и не список (например, None), то превращаем в пустой список
-            # Фильтруем "values", убирая "Неизвестный ответ"
-            user_answers = [
-                answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
-            ]
 
+        # Фильтруем "values", убирая "Неизвестный ответ"
+        user_answers = [
+            answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
+        ]
+        print(user_answers)
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
             user_answers = correct_answers
@@ -641,6 +642,14 @@ def test_report(request, test_result_id):
         answers = []
 
         # # Получаем user_answer_keys
+        # user_answer_keys = user_answer_data.get("keys", [])
+        #
+        # # Если "keys" - это строка, то преобразуем в список
+        # if isinstance(user_answer_keys, str):
+        #     user_answer_keys = [user_answer_keys]
+        # elif not isinstance(user_answer_keys, list):
+        #     # Если "keys" не строка и не список (например, None), то преобразуем в пустой список
+        #     user_answer_keys = []        # # Получаем user_answer_keys
         # user_answer_keys = user_answer_data.get("keys", [])
         #
         # # Если "keys" - это строка, то преобразуем в список
