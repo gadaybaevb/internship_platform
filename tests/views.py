@@ -446,11 +446,16 @@ def evaluate_multiple(question, user_answers):
     except (ValueError, TypeError):
         print("Ошибка преобразования ответов в числа")
         return 0.0  # Некорректный формат ответа
-
-    if set(correct_answers) == set(selected_answers):
+    print('selected_answers: ', selected_answers)
+    print('correct_answers: ', correct_answers)
+    if set(selected_answers) == set(correct_answers):
+        print('1 score')
         return 1.0  # Все правильные ответы выбраны
-    elif set(correct_answers).intersection(set(selected_answers)):
-        return 0.5  # Часть правильных ответов выбрана
+
+    elif set(selected_answers) & set(correct_answers):  # Есть хотя бы один правильный ответ
+        print('0,5 score')
+        return 0.5
+    print('0 score')
     return 0.0  # Неверные ответы
 
 
@@ -571,7 +576,6 @@ def test_results(request, test_id):
     })
 
 
-
 @login_required
 def test_instructions(request, test_id):
     test = get_object_or_404(Test, id=test_id)
@@ -616,16 +620,19 @@ def test_report(request, test_result_id):
     for question_result in question_results:
         # Получаем правильные ответы
         correct_answers = list(question_result.correct_answer.values()) if question_result.correct_answer else []
-
+        print(question_result)
+        print(correct_answers)
         # Получаем пользовательские ответы
         user_answer_data = question_result.user_answer or {}  # Гарантируем, что это словарь
         user_answers = [
             answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
         ]
-
+        print(user_answer_data)
+        print(user_answers)
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
             user_answers = correct_answers
+
 
         # Подготавливаем варианты ответа с указанием правильности
         answers = []
