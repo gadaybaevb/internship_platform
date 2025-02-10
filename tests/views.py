@@ -622,8 +622,16 @@ def test_report(request, test_result_id):
 
         # Получаем пользовательские ответы
         user_answer_data = question_result.user_answer or {}  # Гарантируем, что это словарь
+        # Проверяем, если "keys" строка, преобразуем её в список
+        user_answer_keys = user_answer_data.get("keys", [])
+        if isinstance(user_answer_keys, str):
+            user_answer_keys = [user_answer_keys]  # Преобразуем строку в список
+        elif not isinstance(user_answer_keys, list):
+            user_answer_keys = []  # Если "keys" не строка и не список (например, None), то превращаем в пустой список
+
+        # Фильтруем "values", убирая "Неизвестный ответ"
         user_answers = [
-            answer for answer in user_answer_data.get("keys", []) if answer != "Неизвестный ответ"
+            answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
         ]
         print(user_answers)
         # Если ответ правильный, заменить пользовательские ответы на правильные
