@@ -632,7 +632,9 @@ def test_report(request, test_result_id):
         # Получаем значения из keys и values
         user_answer_keys = user_answer_data.get("keys", [])
         user_answer_values = user_answer_data.get("values", [])
-
+        # Если keys равно None, присваиваем пустой список
+        if user_answer_keys is None:
+            user_answer_keys = []
         # Фильтруем "values", убирая "Неизвестный ответ"
         user_answers = [
             answer for answer in user_answer_values if answer != "Неизвестный ответ"
