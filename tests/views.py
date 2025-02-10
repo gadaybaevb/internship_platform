@@ -633,7 +633,6 @@ def test_report(request, test_result_id):
                 answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
             ]
 
-        print(user_answers)
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
             user_answers = correct_answers
