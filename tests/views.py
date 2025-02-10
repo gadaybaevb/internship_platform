@@ -619,23 +619,31 @@ def test_report(request, test_result_id):
     for question_result in question_results:
         # Получаем правильные ответы
         correct_answers = list(question_result.correct_answer.values()) if question_result.correct_answer else []
+
         # Получаем пользовательские ответы
         user_answer_data = question_result.user_answer or {}  # Гарантируем, что это словарь
         user_answers = [
             answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
         ]
+
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
             user_answers = correct_answers
 
-
         # Подготавливаем варианты ответа с указанием правильности
         answers = []
+
+        # Получаем user_answer_keys
         user_answer_keys = user_answer_data.get("keys", [])
 
-        # Если user_answer_keys равно None, заменяем его на пустой список
-        if not isinstance(user_answer_keys, list):
+        # Если "keys" - это строка, то преобразуем в список
+        if isinstance(user_answer_keys, str):
+            user_answer_keys = [user_answer_keys]
+        elif not isinstance(user_answer_keys, list):
+            # Если "keys" не строка и не список (например, None), то преобразуем в пустой список
             user_answer_keys = []
+
+        # Если user_answer_keys равно None, заменяем его на пустой список
         for answer_id, answer_text in question_result.options.items():
             answers.append({
                 'id': answer_id,
@@ -656,6 +664,7 @@ def test_report(request, test_result_id):
 
         is_user_correct = user_answer_keys_set == correct_answer_keys_set
         print(is_user_correct)
+
         # Добавляем данные вопроса
         questions_with_answers.append({
             'question_text': question_result.question_text,
@@ -664,12 +673,14 @@ def test_report(request, test_result_id):
             'correct_answers': correct_answers,
             'is_user_correct': is_user_correct
         })
+
     # Отправляем данные в шаблон
     return render(request, 'test_report.html', {
         'test_result': test_result,
         'questions_with_answers': questions_with_answers,
         'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
     })
+
 
 
 
