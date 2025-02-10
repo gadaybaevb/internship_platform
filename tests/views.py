@@ -628,23 +628,10 @@ def test_report(request, test_result_id):
             user_answer_keys = [user_answer_keys]  # Преобразуем строку в список
         elif not isinstance(user_answer_keys, list):
             user_answer_keys = []  # Если "keys" не строка и не список (например, None), то превращаем в пустой список
-
-        # Получаем значения из keys и values
-        user_answer_keys = user_answer_data.get("keys", [])
-        user_answer_values = user_answer_data.get("values", [])
-        # Если keys равно None, присваиваем пустой список
-        if user_answer_keys is None:
-            user_answer_keys = []
-        # Фильтруем "values", убирая "Неизвестный ответ"
-        user_answers = [
-            answer for answer in user_answer_values if answer != "Неизвестный ответ"
-        ]
-
-        # Если все ответы в values это "Неизвестный ответ", берем значение из keys
-        if not user_answers:  # Если user_answers пустой
-            user_answers = user_answer_keys  # Используем keys как ответы
-
-        print(user_answers)
+            # Фильтруем "values", убирая "Неизвестный ответ"
+            user_answers = [
+                answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
+            ]
 
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
@@ -652,6 +639,18 @@ def test_report(request, test_result_id):
 
         # Подготавливаем варианты ответа с указанием правильности
         answers = []
+
+        # # Получаем user_answer_keys
+        # user_answer_keys = user_answer_data.get("keys", [])
+        #
+        # # Если "keys" - это строка, то преобразуем в список
+        # if isinstance(user_answer_keys, str):
+        #     user_answer_keys = [user_answer_keys]
+        # elif not isinstance(user_answer_keys, list):
+        #     # Если "keys" не строка и не список (например, None), то преобразуем в пустой список
+        #     user_answer_keys = []
+
+        # Если user_answer_keys равно None, заменяем его на пустой список
         for answer_id, answer_text in question_result.options.items():
             answers.append({
                 'id': answer_id,
@@ -688,7 +687,6 @@ def test_report(request, test_result_id):
         'questions_with_answers': questions_with_answers,
         'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
     })
-
 
 
 
