@@ -187,11 +187,27 @@ def add_question(request, test_id):
                     return render(request, 'add_question.html',
                                   {'question_form': question_form, 'formset': formset, 'test': test})
 
-            # elif question_type == 'match':
-            #     if not all(answer.get('text') and answer.get('match_pair') for answer in answers):
-            #         messages.error(request, 'Для типа "match" каждая пара вопрос-ответ должна быть заполнена.')
-            #         return render(request, 'add_question.html',
-            #                       {'question_form': question_form, 'formset': formset, 'test': test})
+            # **Обработка типа "соответствие"**
+            elif question_type == 'matching':
+                # Для типа "соответствие" проверяем, что есть пары ответов
+                matching_pairs = [(answer.get('left_text'), answer.get('right_text')) for answer in answers if
+                                  answer.get('left_text') and answer.get('right_text')]
+
+                if len(matching_pairs) < 2:
+                    formset.add_error(None, "Добавьте хотя бы две пары для соответствия.")
+                    return render(request, 'add_question.html',
+                                  {'question_form': question_form, 'formset': formset, 'test': test})
+
+                # Сохранение вопроса и ответов
+                question.save()
+                for answer_data in answers:
+                    Answer.objects.create(
+                        question=question,
+                        left_text=answer_data['left_text'],
+                        right_text=answer_data['right_text']
+                    )
+
+                return redirect('test_detail', test_id=test.id)
 
             # Если все проверки пройдены, сохраняем вопрос и ответы
             question.save()
@@ -514,9 +530,7 @@ def evaluate_match(question, user_answer):
 
     # Получаем правильные соответствия как множество кортежей (id ответа, match_pair)
     correct_matches = {(str(answer.id), str(answer.match_pair)) for answer in question.answers.all()}
-
     if not user_answer:
-        print("Ответ пользователя для match пуст или None")
         return 0.0
 
     try:
@@ -524,17 +538,13 @@ def evaluate_match(question, user_answer):
         user_matches_dict = json.loads(user_answer) if isinstance(user_answer, str) else user_answer
         # Убедимся, что все значения в user_matches_dict приведены к строкам для надежного сравнения
         user_matches = {(str(key), str(value)) for key, value in user_matches_dict.items()}
-
     except (json.JSONDecodeError, TypeError):
-        print("Ошибка при декодировании JSON ответа пользователя для match")
         return 0.0
 
     # Сравниваем правильные пары и пары пользователя
     if correct_matches == user_matches:
-        print("Ответ пользователя для match полностью правильный.")
         return 1.0  # Полный балл за правильный ответ
     else:
-        print(f"Несоответствие: правильные пары - {correct_matches}, пары пользователя - {user_matches}")
         return 0.0  # Неверный ответ
 
 
