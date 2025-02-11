@@ -8,4 +8,3 @@ from internships.models import Internship
 def create_internship_for_intern(sender, instance, created, **kwargs):
     if created and instance.role == 'intern':  # Только для новых пользователей с ролью 'intern'
         Internship.objects.create(intern=instance)
-        print(f"Стажировка создана для {instance.username}")

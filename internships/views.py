@@ -529,11 +529,9 @@ def mentor_view_intern_materials(request, intern_id):
 @login_required
 def confirm_material_completion(request, progress_id):
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
-    print(f"Progress ID: {material_progress.id}")  # Отладка
 
     if request.user.role == 'mentor' and request.method == 'POST':
         action = request.POST.get('action')
-        print(f"Action: {action}")  # Отладка
         if action == 'approve':
             material_progress.status = 'completed'
             material_progress.completed = True

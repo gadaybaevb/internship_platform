@@ -386,7 +386,7 @@ def evaluate_test(test, user_answers, request):
             is_correct = score == 1.0
 
         elif question.question_type == 'true_false':
-            score = evaluate_true_false(question, user_answer_keys)
+            score = evaluate_true_false(question, user_answer_keys[0])
             correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
             is_correct = score == 1.0
 
@@ -431,8 +431,6 @@ def evaluate_single(question, user_answer):
     # Проверяем, что пользователь выбрал ответ
     if user_answer is None:
         return 0.0  # Если ответа нет, возвращаем 0 баллов
-    print(user_answer, type(user_answer))
-    print(correct_answer, type(user_answer))
     try:
         if str(correct_answer) == str(user_answer):
             return 1.0  # Верный ответ, полный балл
@@ -455,28 +453,25 @@ def evaluate_multiple(question, user_answers):
     except (ValueError, TypeError):
         print("Ошибка преобразования ответов в числа")
         return 0.0  # Некорректный формат ответа
-    print('selected_answers: ', selected_answers)
-    print('correct_answers: ', correct_answers)
+
     if set(selected_answers) == set(correct_answers):
-        print('1 score')
         return 1.0  # Все правильные ответы выбраны
 
     elif set(selected_answers) & set(correct_answers):  # Есть хотя бы один правильный ответ
-        print('0,5 score')
         return 0.5
-    print('0 score')
     return 0.0  # Неверные ответы
 
 
 def evaluate_true_false(question, user_answer):
     """Оценка вопроса типа верно/неверно"""
     correct_answer = question.answers.filter(is_correct=True).first()
+    print('correct_answer ', correct_answer)
     if correct_answer.text == 'Верно':
         correct_answer.text = 'true'
     else:
         correct_answer.text = 'false'
 
-
+    print('user_answer ', user_answer)
     if user_answer is None:
         print(f"Ответ на вопрос {question.id} не выбран")
         return 0.0  # Если ответ не выбран, возвращаем 0 баллов
@@ -642,7 +637,6 @@ def test_report(request, test_result_id):
         user_answers = [
             answer for answer in user_answer_data.get("values", []) if answer != "Неизвестный ответ"
         ]
-        print("ываыва,", user_answer_data.get("values", []))
         # Если ответ правильный, заменить пользовательские ответы на правильные
         if question_result.is_correct:
             user_answers = correct_answers
@@ -664,13 +658,8 @@ def test_report(request, test_result_id):
         user_answer_keys_set = set(user_answer_keys)  # Преобразуем в множество
         correct_answer_keys_set = set(correct_answer_keys)  # Преобразуем в множество
 
-        # Сравниваем множества
-        print('correct_answer_keys ', correct_answer_keys)
-        print('user_answer_keys_set ', user_answer_keys_set)
-        print('correct_answer_keys_set ', correct_answer_keys_set)
 
         is_user_correct = user_answer_keys_set == correct_answer_keys_set
-        print(is_user_correct)
 
         # Добавляем данные вопроса
         questions_with_answers.append({
