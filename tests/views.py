@@ -388,7 +388,7 @@ def evaluate_test(test, user_answers, request):
 
             # Если values пустые или содержат только "Неизвестный ответ", заменяем на keys
         if not user_answer_values or all(v == "Неизвестный ответ" for v in user_answer_values):
-            user_answer_values = [options.get(k, "Неизвестный ответ") for k in user_answer_keys]
+            user_answer_values = [options.get(k, "Неизвестный ответ") for k in user_answer_keys] if options else []
 
         # Обработка разных типов вопросов
         if question.question_type == 'single':
