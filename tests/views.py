@@ -386,10 +386,15 @@ def evaluate_test(test, user_answers, request):
         if isinstance(user_answer_keys, str):
             user_answer_keys = [user_answer_keys]
 
+        if user_answer_keys is None:
+            user_answer_keys = []
             # Если values пустые или содержат только "Неизвестный ответ", заменяем на keys
         if not user_answer_values or all(v == "Неизвестный ответ" for v in user_answer_values):
             user_answer_values = [options.get(k, "Неизвестный ответ") for k in user_answer_keys] if options else []
-
+        # Добавляем print для отладки
+        print(f"Question ID: {question_id}")
+        print(f"User Answer Keys: {user_answer_keys}")
+        print(f"User Answer Values: {user_answer_values}")
         # Обработка разных типов вопросов
         if question.question_type == 'single':
             score = evaluate_single(question, user_answer_values[0])
