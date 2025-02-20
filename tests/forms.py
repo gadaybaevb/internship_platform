@@ -26,6 +26,14 @@ class QuestionForm(forms.ModelForm):
             'question_type': forms.Select(attrs={'class': 'form-control'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super(QuestionForm, self).__init__(*args, **kwargs)
+        # Убрать опцию 'true_false' из списка выбора
+        self.fields['question_type'].choices = [
+            choice for choice in self.fields['question_type'].choices
+            if choice[0] != 'true_false'
+        ]
+
 
 AnswerFormSet = inlineformset_factory(Question, Answer, fields=('text', 'is_correct', 'sequence_order', 'match_pair'),
                                       labels={

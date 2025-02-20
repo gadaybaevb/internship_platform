@@ -248,6 +248,17 @@ def tests_list(request):
         test.actual_questions = test.questions.count()  # Количество вопросов в базе
         test.is_complete = test.actual_questions >= test.required_questions  # Проверка на достаточность вопросов
 
+    # Найти все вопросы с типом "true_false"
+    questions_to_update = Question.objects.filter(question_type='true_false')
+
+    # Количество найденных вопросов
+    count = questions_to_update.count()
+
+    # Заменить тип на "single"
+    questions_to_update.update(question_type='single')
+
+    print(f"Количество найденных и обновленных вопросов: {count}")
+
     return render(request, 'tests_list.html', {'page_obj': page_obj, 'search_query': search_query})
 
 
@@ -388,13 +399,12 @@ def evaluate_test(test, user_answers, request):
 
         if user_answer_keys is None:
             user_answer_keys = []
+        # elif user_answer_values is None:
+        #     user_answer_values = []
             # Если values пустые или содержат только "Неизвестный ответ", заменяем на keys
         if not user_answer_values or all(v == "Неизвестный ответ" for v in user_answer_values):
             user_answer_values = [options.get(k, "Неизвестный ответ") for k in user_answer_keys] if options else []
-        # Добавляем print для отладки
-        print(f"Question ID: {question_id}")
-        print(f"User Answer Keys: {user_answer_keys}")
-        print(f"User Answer Values: {user_answer_values}")
+
         # Обработка разных типов вопросов
         if question.question_type == 'single':
             score = evaluate_single(question, user_answer_values[0])
@@ -407,7 +417,10 @@ def evaluate_test(test, user_answers, request):
             is_correct = score == 1.0
 
         elif question.question_type == 'true_false':
-            score = evaluate_true_false(question, user_answer_keys[0])
+            print('user_answer_values[0]: ', user_answer_values[0])
+            print('user_answer_values: ', user_answer_values)
+            score = evaluate_single(question, user_answer_values[0])
+            # score = evaluate_true_false(question, user_answer_keys[0])
             correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
             is_correct = score == 1.0
 
