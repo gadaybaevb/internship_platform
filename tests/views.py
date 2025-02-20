@@ -235,7 +235,7 @@ def add_question(request, test_id):
 @login_required
 def tests_list(request):
     search_query = request.GET.get('search', '')
-    tests = Test.objects.all()
+    tests = Test.objects.all().order_by('id')
 
     if search_query:
         tests = tests.filter(title__icontains=search_query)
