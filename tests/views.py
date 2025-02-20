@@ -248,16 +248,16 @@ def tests_list(request):
         test.actual_questions = test.questions.count()  # Количество вопросов в базе
         test.is_complete = test.actual_questions >= test.required_questions  # Проверка на достаточность вопросов
 
-    # Найти все вопросы с типом "true_false"
-    questions_to_update = Question.objects.filter(question_type='true_false')
-
-    # Количество найденных вопросов
-    count = questions_to_update.count()
-
-    # Заменить тип на "single"
-    questions_to_update.update(question_type='single')
-
-    print(f"Количество найденных и обновленных вопросов: {count}")
+    # # Найти все вопросы с типом "true_false"
+    # questions_to_update = Question.objects.filter(question_type='true_false')
+    #
+    # # Количество найденных вопросов
+    # count = questions_to_update.count()
+    #
+    # # Заменить тип на "single"
+    # questions_to_update.update(question_type='single')
+    #
+    # print(f"Количество найденных и обновленных вопросов: {count}")
 
     return render(request, 'tests_list.html', {'page_obj': page_obj, 'search_query': search_query})
 
