@@ -417,15 +417,13 @@ def evaluate_test(test, user_answers, request):
             is_correct = score == 1.0
 
         elif question.question_type == 'true_false':
-            print('user_answer_values[0]: ', user_answer_values[0])
-            print('user_answer_values: ', user_answer_values)
             score = evaluate_single(question, user_answer_values[0])
             # score = evaluate_true_false(question, user_answer_keys[0])
             correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
             is_correct = score == 1.0
 
         elif question.question_type == 'sequence':
-            score = evaluate_sequence(question, user_answer_keys)
+            score = evaluate_sequence(question, user_answer_keys[0])
             correct_answer = {str(answer.id): answer.text for answer in question.answers.order_by('sequence_order')}
             is_correct = score == 1.0
 
