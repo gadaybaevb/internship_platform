@@ -23,14 +23,15 @@ from django.db.models import Q
 def home(request):
     user = request.user
     context = {}
-
+    print('Start')
     materials_without_feedback = MaterialProgress.objects.filter(
-        feedback__isnull=True,
-        status='Ожидание')
+        Q(feedback__isnull=True) | Q(feedback=''),
+        status='pending'
+    )
 
     for progress in materials_without_feedback:
         print("Progress: ", progress)
-        progress.status = 'not_started'  # Или ваш статус для проверки
+        progress.status = 'not_started'
         progress.save()
 
 
