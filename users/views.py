@@ -29,6 +29,8 @@ def home(request):
         status='pending'
     )
 
+    print("Number of materials without feedback:", materials_without_feedback.count())
+
     for progress in materials_without_feedback:
         print("Progress: ", progress)
         progress.status = 'not_started'
