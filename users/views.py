@@ -25,16 +25,15 @@ def home(request):
     context = {}
     print('Start')
     materials_without_feedback = MaterialProgress.objects.filter(
-        Q(feedback__isnull=True) | Q(feedback=''),
-        status='pending'
+        Q(feedback__isnull=True) | Q(feedback='')
     )
 
     print("Number of materials without feedback:", materials_without_feedback.count())
 
-    for progress in materials_without_feedback:
-        print("Progress: ", progress)
-        progress.status = 'not_started'
-        progress.save()
+    # for progress in materials_without_feedback:
+    #     print("Progress: ", progress)
+    #     progress.status = 'not_started'
+    #     progress.save()
 
 
 
