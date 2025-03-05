@@ -26,7 +26,7 @@ def home(request):
 
     materials_without_feedback = MaterialProgress.objects.filter(
         feedback__isnull=True,
-        status='pending')
+        status='Ожидание')
 
     for progress in materials_without_feedback:
         print("Progress: ", progress)
