@@ -16,12 +16,25 @@ from django.utils.timezone import now
 from datetime import timedelta, date
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 
 
 @login_required
 def home(request):
     user = request.user
     context = {}
+
+    materials_without_feedback = MaterialProgress.objects.filter(
+        Q(feedback__isnull=True) | Q(feedback=''),
+        status='pending'
+    )
+
+    for progress in materials_without_feedback:
+        print("Progress: ", progress)
+        progress.status = 'not_started'  # Или ваш статус для проверки
+        progress.save()
+
+
 
     if not user.is_authenticated:
         return redirect('login')
