@@ -25,7 +25,7 @@ def home(request):
     context = {}
 
     materials_without_feedback = MaterialProgress.objects.filter(
-        Q(feedback__isnull=True) | Q(feedback=''),
+        feedback__isnull=True,
         status='pending'
     )
 
