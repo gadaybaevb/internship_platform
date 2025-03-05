@@ -23,17 +23,20 @@ from django.db.models import Q
 def home(request):
     user = request.user
     context = {}
-    print('Start')
-    materials_without_feedback = MaterialProgress.objects.filter(
-        Q(feedback__isnull=True) | Q(feedback='')
-    )
+    # Ищем все материалы со статусом 'pending'
+    materials_with_pending_status = MaterialProgress.objects.filter(status='pending')
 
-    print("Number of materials without feedback:", materials_without_feedback.count())
+    print(f"Found {materials_with_pending_status.count()} materials with 'pending' status.")
 
-    # for progress in materials_without_feedback:
-    #     print("Progress: ", progress)
-    #     progress.status = 'not_started'
-    #     progress.save()
+    # Обрабатываем эти материалы
+    for progress in materials_with_pending_status:
+        # Проверяем, если у материала нет отзыва
+        if not progress.feedback:
+            print(f"Progress ID: {progress.id} has no feedback. Changing status to 'not_started'.")
+            progress.status = 'not_started'  # Сбрасываем статус на 'не пройден'
+            progress.save()  # Сохраняем изменения
+        else:
+            print(f"Progress ID: {progress.id} has feedback.")
 
 
 
