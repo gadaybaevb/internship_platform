@@ -31,17 +31,16 @@ def home(request):
 
     # Ищем все материалы этого пользователя со статусом 'pending' и без отзыва
     materials_without_feedback = MaterialProgress.objects.filter(
-        intern=intern,
-        status='pending'
+        intern=intern
     ).filter(
         Q(feedback__isnull=True) | Q(feedback__exact='')
     )
 
-    print(f"Found {materials_without_feedback.count()} materials for mizhgona with 'pending' status and no feedback.")
+    print(f"Found {materials_without_feedback.count()} materials for mizhgona with no feedback.")
 
     # Обрабатываем эти материалы
     for progress in materials_without_feedback:
-        print(f"Progress ID: {progress.id} has no feedback. Changing status to 'not_started'.")
+        print(f"Progress ID: {progress.id} has no feedback. Status of material {progress.status}.")
         # progress.status = 'not_started'  # Сбрасываем статус на 'не пройден'
         # progress.save()  # Сохраняем изменения
 
