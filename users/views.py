@@ -32,8 +32,6 @@ def home(request):
     # Ищем все материалы этого пользователя со статусом 'pending' и без отзыва
     materials_without_feedback = MaterialProgress.objects.filter(
         intern=intern
-    ).filter(
-        Q(feedback__isnull=True) | Q(feedback__exact='')
     )
 
     print(f"Found {materials_without_feedback.count()} materials for mizhgona with no feedback.")
