@@ -23,21 +23,27 @@ from django.db.models import Q
 def home(request):
     user = request.user
     context = {}
-    # Ищем все материалы со статусом 'pending'
-    materials_with_pending_status = MaterialProgress.objects.filter(status='pending')
+    # Ищем пользователя mizhgona
+    try:
+        intern = CustomUser.objects.get(username='mizhgona')
+    except CustomUser.DoesNotExist:
+        print("Пользователь 'mizhgona' не найден.")
 
-    print(f"Found {materials_with_pending_status.count()} materials with 'pending' status.")
+    # Ищем все материалы этого пользователя со статусом 'pending' и без отзыва
+    materials_without_feedback = MaterialProgress.objects.filter(
+        intern=intern,
+        status='pending'
+    ).filter(
+        Q(feedback__isnull=True) | Q(feedback__exact='')
+    )
+
+    print(f"Found {materials_without_feedback.count()} materials for mizhgona with 'pending' status and no feedback.")
 
     # Обрабатываем эти материалы
-    for progress in materials_with_pending_status:
-        # Проверяем, если у материала нет отзыва
-        if not progress.feedback:
-            print(f"Progress ID: {progress.id} has no feedback. Changing status to 'not_started'.")
-            progress.status = 'not_started'  # Сбрасываем статус на 'не пройден'
-            progress.save()  # Сохраняем изменения
-        else:
-            print(f"Progress ID: {progress.id} has feedback.")
-
+    for progress in materials_without_feedback:
+        print(f"Progress ID: {progress.id} has no feedback. Changing status to 'not_started'.")
+        # progress.status = 'not_started'  # Сбрасываем статус на 'не пройден'
+        # progress.save()  # Сохраняем изменения
 
 
     if not user.is_authenticated:
