@@ -23,25 +23,6 @@ from django.db.models import Q
 def home(request):
     user = request.user
     context = {}
-    # Ищем пользователя mizhgona
-    try:
-        intern = CustomUser.objects.get(username='mizhgona')
-    except CustomUser.DoesNotExist:
-        print("Пользователь 'mizhgona' не найден.")
-
-    # Ищем все материалы этого пользователя со статусом 'pending' и без отзыва
-    materials_without_feedback = MaterialProgress.objects.filter(
-        intern=intern
-    )
-
-    print(f"Found {materials_without_feedback.count()} materials for mizhgona with no feedback.")
-
-    # Обрабатываем эти материалы
-    for progress in materials_without_feedback:
-        print(f"Progress ID: {progress.id} has no feedback. Status of material {progress.status}.")
-        # progress.status = 'not_started'  # Сбрасываем статус на 'не пройден'
-        # progress.save()  # Сохраняем изменения
-
 
     if not user.is_authenticated:
         return redirect('login')
