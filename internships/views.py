@@ -395,6 +395,7 @@ def intern_materials(request):
     final_test = Test.objects.filter(position=intern.position, stage_number=2).first()
     midterm_test_result = TestResult.objects.filter(user=intern, test=midterm_test).first() if midterm_test else None
     final_test_result = TestResult.objects.filter(user=intern, test=final_test).first() if final_test else None
+    print(f"DEBUG: internship.is_completed()={internship.is_completed()}, intern_feedback={intern_feedback}")
 
     # Условие для отображения кнопок тестов
     show_midterm_test_button = (not midterm_test_result) and midterm_test and stage_1_completed
@@ -529,11 +530,7 @@ def mentor_view_intern_materials(request, intern_id):
 
 @login_required
 def confirm_material_completion(request, progress_id):
-    print(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
-    print(f"User role: {request.user.role}, Authenticated: {request.user.is_authenticated}")
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
-    print(f"DEBUG: role={request.user.role}, type={type(request.user.role)}, method={request.method}")
-    print(f"DEBUG: Request method={request.method}, Expected='POST'")
 
     if request.user.role == 'mentor' and request.method == 'POST':
         action = request.POST.get('action')
