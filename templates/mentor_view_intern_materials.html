@@ -131,12 +131,11 @@
             // Обработчик для модального окна с отзывом
             feedbackModal.addEventListener("show.bs.modal", function (event) {
                 const button = event.relatedTarget;
-                const feedback = button.getAttribute("data-feedback");
                 const feedbackTextarea = feedbackModal.querySelector("#feedbackTextarea");
-
+            
                 if (feedbackTextarea) {
-                    feedbackTextarea.value = feedback || ""; // Заполняем отзыв ментора
-                    feedbackTextarea.focus();
+                    feedbackTextarea.value = ""; // Убедимся, что поле доступно
+                    feedbackTextarea.focus(); // Перемещаем фокус
                 }
             });
         });
