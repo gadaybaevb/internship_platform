@@ -76,7 +76,7 @@
                         {% if internship.is_internship_completed %}
                             {% if internship.mentor_review_exists %}
                                 <span class="text-success">Отзыв оставлен</span>
-                            {% elif internship.intern_feedback_exists %}
+                            {% else %}
                                 <button class="btn btn-warning btn-sm show-review-form" data-internship-id="{{ internship.id }}">Оставить отзыв</button>
                             {% endif %}
                         {% else %}

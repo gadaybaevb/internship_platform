@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+
 {% block content %}
 <div class="container mt-4">
     <h2>Материалы стажера: {{ intern.full_name }}</h2>
@@ -21,11 +21,15 @@
                 <td>Этап {{ item.material.stage }}</td>
                 <td>
                     {% if item.feedback %}
-                        <p>{{ item.feedback }}</p>
+                        <a href="#" class="text-primary" data-bs-toggle="modal" 
+                           data-bs-target="#feedbackModal" data-feedback="{{ item.feedback }}">
+                            Оставить отзыв ментора
+                        </a>
                     {% else %}
                         <span class="text-muted">Отзыв отсутствует</span>
                     {% endif %}
                 </td>
+
                 <td>
                     {% if item.status == 'Завершён' %}
                         <span class="text-success">Завершён</span>
@@ -37,7 +41,16 @@
                 </td>
                 <td>
                     {% if item.status == 'Ожидание' %}
-                        <button type="button" class="btn btn-primary btn-sm">Действие</button>
+                        <button type="button" class="btn btn-success btn-sm" 
+                                data-bs-toggle="modal" data-bs-target="#confirmModal" 
+                                data-progress-id="{{ item.progress_id }}">
+                            Подтвердить
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm" 
+                                data-bs-toggle="modal" data-bs-target="#rejectModal" 
+                                data-progress-id="{{ item.progress_id }}">
+                            Отклонить
+                        </button>
                     {% endif %}
                 </td>
             </tr>
@@ -45,17 +58,88 @@
         </tbody>
     </table>
 
-    <!-- Форма отзыва ментора -->
-    <div class="mt-4">
-        <h4>Оставить отзыв о стажере</h4>
-        <form method="post" action="{% url 'submit_mentor_feedback' intern.id %}" class="card p-4 shadow-sm">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="mentorFeedback">Ваш отзыв:</label>
-                <textarea id="mentorFeedback" name="mentor_feedback" class="form-control" placeholder="Напишите ваш отзыв о стажере" rows="5" required>{{ intern.mentor_feedback }}</textarea>
-            </div>
-            <button type="submit" class="btn btn-primary btn-lg mt-3">Сохранить отзыв</button>
-        </form>
+    <!-- Модальное окно для оставления отзыва ментора -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" action="{% url 'submit_mentor_feedback' intern.id %}">
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="feedbackModalLabel">Оставить отзыв о стажере</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea id="feedbackTextarea" name="mentor_feedback" class="form-control" placeholder="Напишите ваш отзыв"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить отзыв</button>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
+
+    <!-- Модальное окно подтверждения -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" id="confirmForm" action="">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="confirmModalLabel">Подтверждение материала</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-success">Подтвердить</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно отклонения -->
+    <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" id="rejectForm" action="">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="rejectModalLabel">Отклонение материала</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                   <div class="modal-body">
+                       <textarea id="rejectTextarea" class="form-control" placeholder="Напишите причину отклонения"></textarea>
+                   </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-danger">Отклонить</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const feedbackModal = document.getElementById("feedbackModal");
+
+            // Обработчик для модального окна с отзывом
+            feedbackModal.addEventListener("show.bs.modal", function (event) {
+                const button = event.relatedTarget;
+                const feedbackTextarea = feedbackModal.querySelector("#feedbackTextarea");
+            
+                if (feedbackTextarea) {
+                    feedbackTextarea.value = ""; // Убедимся, что поле доступно
+                    feedbackTextarea.focus(); // Перемещаем фокус
+                }
+            });
+        });
+    </script>
+
 </div>
 {% endblock %}

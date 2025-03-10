@@ -46,4 +46,10 @@ class AddInternForm(forms.ModelForm):
 class MentorReviewForm(forms.ModelForm):
     class Meta:
         model = Internship
-        fields = ['mentor_feedback']  # Только отзыв ментора
+        fields = ['mentor_feedback']
+        widgets = {
+            'mentor_feedback': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Напишите отзыв о стажере'
+            })
+        }
