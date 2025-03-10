@@ -132,9 +132,15 @@
             feedbackModal.addEventListener("show.bs.modal", function (event) {
                 const button = event.relatedTarget;
                 const feedback = button.getAttribute("data-feedback");
-                const feedbackContent = feedbackModal.querySelector("#feedbackContent");
-                feedbackContent.textContent = feedback || "Отзыв отсутствует";
+                const feedbackTextarea = feedbackModal.querySelector("#feedbackTextarea");
+            
+                // Убедимся, что поле <textarea> существует, и заполняем его
+                if (feedbackTextarea) {
+                    feedbackTextarea.value = feedback || "";
+                    feedbackTextarea.focus(); // Переводим курсор в текстовое поле
+                }
             });
+
 
             // Устанавливаем правильный action в форму подтверждения
             confirmModal.addEventListener("show.bs.modal", function (event) {
