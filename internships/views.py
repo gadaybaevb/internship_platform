@@ -14,6 +14,7 @@ from users.models import CustomUser
 from django.core.files.storage import default_storage
 from .utils import create_stage_progress
 from datetime import timedelta, datetime
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from notifications.models import Notification
 from tests.models import Test, TestResult
@@ -526,13 +527,14 @@ def mentor_view_intern_materials(request, intern_id):
     })
 
 
+@csrf_exempt
 @login_required
 def confirm_material_completion(request, progress_id):
     print(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
     print(f"User role: {request.user.role}, Authenticated: {request.user.is_authenticated}")
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
 
-    if request.user.role == 'mentor' or request.user.role == 'admin' and request.method == 'POST':
+    if request.user.role in ['mentor', 'admin'] and request.method == 'POST':
         action = request.POST.get('action')
         if action == 'approve':
             material_progress.status = 'completed'
@@ -559,7 +561,7 @@ def confirm_material_completion(request, progress_id):
                 messages.error(request, 'Пожалуйста, укажите причину отклонения материала.')
     else:
         print("Invalid user role or request method")  # Отладка
-
+    print(f"Session Key: {request.session.session_key}")
     return redirect('dashboard')
 
 
