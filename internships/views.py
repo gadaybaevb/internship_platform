@@ -527,7 +527,6 @@ def mentor_view_intern_materials(request, intern_id):
     })
 
 
-@csrf_exempt
 @login_required
 def confirm_material_completion(request, progress_id):
     print(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
