@@ -125,7 +125,7 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <input type="hidden" name="internship_id" id="internshipIdInput">
-                    {{ form.mentor_feedback|crispy }}
+                    <textarea name="mentor_feedback" id="mentorFeedback" class="form-control" placeholder="Напишите ваш отзыв"></textarea>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>

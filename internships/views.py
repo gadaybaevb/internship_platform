@@ -274,6 +274,7 @@ def dashboard(request):
 
         form = MentorReviewForm()  # Пустая форма только для отзыва ментора
 
+
     else:
         stage_progress = StageProgress.objects.filter(intern=user).order_by('stage')
         internship = Internship.objects.filter(intern=user).first()
