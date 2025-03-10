@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+
 {% block content %}
 <div class="container mt-4">
     <h2>Материалы стажера: {{ intern.full_name }}</h2>
@@ -20,8 +21,8 @@
                 <td>Этап {{ item.material.stage }}</td>
                 <td>
                     {% if item.feedback %}
-                        <!-- Ссылка на отзыв -->
-                        <a href="#" class="text-primary" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-feedback="{{ item.feedback }}">
+                        <a href="#" class="text-primary" data-bs-toggle="modal" 
+                           data-bs-target="#feedbackModal" data-feedback="{{ item.feedback }}">
                             Отзыв стажера
                         </a>
                     {% else %}
@@ -40,12 +41,14 @@
                 </td>
                 <td>
                     {% if item.status == 'Ожидание' %}
-                        <!-- Кнопка подтверждения -->
-                        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-progress-id="{{ item.progress_id }}">
+                        <button type="button" class="btn btn-success btn-sm" 
+                                data-bs-toggle="modal" data-bs-target="#confirmModal" 
+                                data-progress-id="{{ item.progress_id }}">
                             Подтвердить
                         </button>
-                        <!-- Кнопка отклонения -->
-                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal" data-progress-id="{{ item.progress_id }}">
+                        <button type="button" class="btn btn-danger btn-sm" 
+                                data-bs-toggle="modal" data-bs-target="#rejectModal" 
+                                data-progress-id="{{ item.progress_id }}">
                             Отклонить
                         </button>
                     {% endif %}
@@ -76,9 +79,9 @@
     <!-- Модальное окно подтверждения -->
     <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <form method="post" id="confirmForm">
+            <form method="post" id="confirmForm" action="">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="approve"> <!-- Скрытое поле для действия -->
+                <input type="hidden" name="action" value="approve">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="confirmModalLabel">Подтверждение материала</h5>
@@ -96,9 +99,9 @@
     <!-- Модальное окно отклонения -->
     <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <form method="post" id="rejectForm">
+            <form method="post" id="rejectForm" action="">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="reject"> <!-- Скрытое поле для действия -->
+                <input type="hidden" name="action" value="reject">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="rejectModalLabel">Отклонение материала</h5>
@@ -116,37 +119,38 @@
         </div>
     </div>
 
-    <!-- Скрипт для модальных окон -->
+    <!-- JavaScript -->
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const feedbackModal = document.getElementById('feedbackModal');
-            const confirmModal = document.getElementById('confirmModal');
-            const rejectModal = document.getElementById('rejectModal');
-            const confirmForm = document.getElementById('confirmForm');
-            const rejectForm = document.getElementById('rejectForm');
+            const feedbackModal = document.getElementById("feedbackModal");
+            const confirmModal = document.getElementById("confirmModal");
+            const rejectModal = document.getElementById("rejectModal");
+            const confirmForm = document.getElementById("confirmForm");
+            const rejectForm = document.getElementById("rejectForm");
 
             // Обработчик для модального окна с отзывом
-            feedbackModal.addEventListener('show.bs.modal', function (event) {
+            feedbackModal.addEventListener("show.bs.modal", function (event) {
                 const button = event.relatedTarget;
-                const feedback = button.getAttribute('data-feedback');
-                const feedbackContent = feedbackModal.querySelector('#feedbackContent');
-                feedbackContent.textContent = feedback || 'Отзыв отсутствует';
+                const feedback = button.getAttribute("data-feedback");
+                const feedbackContent = feedbackModal.querySelector("#feedbackContent");
+                feedbackContent.textContent = feedback || "Отзыв отсутствует";
             });
 
-            // Обработчик для подтверждения
-            confirmModal.addEventListener('show.bs.modal', function (event) {
+            // Устанавливаем правильный action в форму подтверждения
+            confirmModal.addEventListener("show.bs.modal", function (event) {
                 const button = event.relatedTarget;
-                const progressId = button.getAttribute('data-progress-id');
-                confirmForm.action = `{% url 'confirm_material_completion' 0 %}`.replace(0, progressId);
+                const progressId = button.getAttribute("data-progress-id");
+                confirmForm.action = `/interships/materials/confirm/${progressId}/`;
             });
 
-            // Обработчик для отклонения
-            rejectModal.addEventListener('show.bs.modal', function (event) {
+            // Устанавливаем правильный action в форму отклонения
+            rejectModal.addEventListener("show.bs.modal", function (event) {
                 const button = event.relatedTarget;
-                const progressId = button.getAttribute('data-progress-id');
-                rejectForm.action = `{% url 'confirm_material_completion' 0 %}`.replace(0, progressId);
+                const progressId = button.getAttribute("data-progress-id");
+                rejectForm.action = `/interships/materials/confirm/${progressId}/`;
             });
         });
     </script>
+
 </div>
 {% endblock %}
