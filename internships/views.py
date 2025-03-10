@@ -10,6 +10,8 @@ from django.core.paginator import Paginator
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.contrib import messages
+from weasyprint import HTML
+from django.template.loader import render_to_string
 from users.models import CustomUser
 from django.core.files.storage import default_storage
 from .utils import create_stage_progress
@@ -1024,3 +1026,32 @@ def active_interns_list(request):
     return render(request, 'active_interns_list.html', {
         'internships_data': internships_data,
     })
+
+
+def generate_pdf(request, intern_id):
+    intern = get_object_or_404(CustomUser, id=intern_id)
+    internship = get_object_or_404(Internship, intern=intern)
+
+    # Контекст данных для шаблона
+    context = {
+        'intern': intern,
+        'internship': internship,
+        'test_results': TestResult.objects.filter(user=intern),
+        'date_added': intern.date_joined,
+        'completion_date': TestResult.objects.filter(user=intern).order_by(
+            '-completed_at').first().completed_at if TestResult.objects.filter(user=intern).exists() else None,
+        'mentor': internship.mentor,
+        'intern_feedback': internship.intern_feedback,
+        'mentor_feedback': internship.mentor_feedback,
+        'pdf_export': True,  # Включаем режим PDF
+    }
+
+    # Рендеринг HTML
+    html_string = render_to_string('intern_report.html', context)
+
+    # Генерация PDF
+    pdf_file = HTML(string=html_string).write_pdf()
+
+    # Возврат ответа с PDF
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="intern_report_{intern.full_name}.pdf"'

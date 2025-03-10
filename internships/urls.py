@@ -23,6 +23,7 @@ from .views import (
     delete_internship,
     intern_report_export,
     active_interns_list,
+    generate_pdf,
 )
 
 urlpatterns = [
@@ -54,4 +55,5 @@ urlpatterns = [
     path('reports/weekly-report/', weekly_report, name='weekly_report'),
     path('intern_report_export/<int:intern_id>/', intern_report_export, name='intern_report_export'),
     path('reports/active_interns/', active_interns_list, name='active_interns_list'),
+    path('pdf/<int:intern_id>/', generate_pdf, name='generate_pdf'),
 ]
