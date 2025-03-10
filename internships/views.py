@@ -534,7 +534,7 @@ def confirm_material_completion(request, progress_id):
     print(f"User role: {request.user.role}, Authenticated: {request.user.is_authenticated}")
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
 
-    if str(request.user.role) in ['mentor', 'admin'] and request.method == 'POST':
+    if request.user.role == 'mentor' and request.method == 'POST':
         action = request.POST.get('action')
         if action == 'approve':
             material_progress.status = 'completed'
