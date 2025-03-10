@@ -72,21 +72,17 @@
             {% endfor %}
         </tbody>
     </table>
-    <p>DEBUG: show_feedback_form = {{ show_feedback_form }}</p>
-    <p>DEBUG: internship.is_completed() = {{ internship.is_completed }}</p>
-    <p>DEBUG: intern_feedback = {{ intern_feedback }}</p>
-    <p>DEBUG: show_feedback_form = {{ show_feedback_form }}</p>
-
     {% if show_feedback_form %}
         <div class="mt-4">
-            <h2>Ваш отзыв о стажировке</h2>
-            <form method="post">
+            <h2 class="mb-3">Ваш отзыв о стажировке</h2>
+            <form method="post" class="card p-4 shadow-sm">
                 {% csrf_token %}
-                {{ form.as_p }}
-                <button type="submit" class="btn btn-primary">Отправить отзыв</button>
+                {{ form|crispy }}
+                <button type="submit" class="btn btn-primary btn-lg mt-3">Отправить отзыв</button>
             </form>
         </div>
     {% endif %}
+
 
     <!-- Модальное окно для отзыва -->
     <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
