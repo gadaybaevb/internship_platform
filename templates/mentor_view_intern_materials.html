@@ -9,7 +9,7 @@
             <tr>
                 <th>Название материала</th>
                 <th>Этап</th>
-                <th>Отзыв</th>
+                <th>Отзыв ментора</th>
                 <th>Статус</th>
                 <th>Действие</th>
             </tr>
@@ -23,7 +23,7 @@
                     {% if item.feedback %}
                         <a href="#" class="text-primary" data-bs-toggle="modal" 
                            data-bs-target="#feedbackModal" data-feedback="{{ item.feedback }}">
-                            Отзыв стажера
+                            Оставить отзыв ментора
                         </a>
                     {% else %}
                         <span class="text-muted">Отзыв отсутствует</span>
@@ -58,21 +58,25 @@
         </tbody>
     </table>
 
-    <!-- Модальное окно для отзыва -->
+    <!-- Модальное окно для оставления отзыва ментора -->
     <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="feedbackModalLabel">Отзыв стажера</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <form method="post" action="{% url 'submit_mentor_feedback' intern.id %}">
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="feedbackModalLabel">Оставить отзыв о стажере</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea id="feedbackTextarea" name="mentor_feedback" class="form-control" placeholder="Напишите ваш отзыв"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить отзыв</button>
+                    </div>
                 </div>
-                <div class="modal-body" id="feedbackContent">
-                    <!-- Отзыв будет загружаться сюда -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                </div>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -108,9 +112,8 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                    <div class="modal-body">
-                       <textarea id="feedbackTextarea" class="form-control" placeholder="Напишите ваш отзыв"></textarea>
+                       <textarea id="rejectTextarea" class="form-control" placeholder="Напишите причину отклонения"></textarea>
                    </div>
-
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                         <button type="submit" class="btn btn-danger">Отклонить</button>
@@ -124,37 +127,17 @@
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const feedbackModal = document.getElementById("feedbackModal");
-            const confirmModal = document.getElementById("confirmModal");
-            const rejectModal = document.getElementById("rejectModal");
-            const confirmForm = document.getElementById("confirmForm");
-            const rejectForm = document.getElementById("rejectForm");
 
             // Обработчик для модального окна с отзывом
             feedbackModal.addEventListener("show.bs.modal", function (event) {
                 const button = event.relatedTarget;
                 const feedback = button.getAttribute("data-feedback");
                 const feedbackTextarea = feedbackModal.querySelector("#feedbackTextarea");
-            
-                // Убедимся, что поле <textarea> существует, и заполняем его
+
                 if (feedbackTextarea) {
-                    feedbackTextarea.value = feedback || "";
-                    feedbackTextarea.focus(); // Переводим курсор в текстовое поле
+                    feedbackTextarea.value = feedback || ""; // Заполняем отзыв ментора
+                    feedbackTextarea.focus();
                 }
-            });
-
-
-            // Устанавливаем правильный action в форму подтверждения
-            confirmModal.addEventListener("show.bs.modal", function (event) {
-                const button = event.relatedTarget;
-                const progressId = button.getAttribute("data-progress-id");
-                confirmForm.action = `/interships/materials/confirm/${progressId}/`;
-            });
-
-            // Устанавливаем правильный action в форму отклонения
-            rejectModal.addEventListener("show.bs.modal", function (event) {
-                const button = event.relatedTarget;
-                const progressId = button.getAttribute("data-progress-id");
-                rejectForm.action = `/interships/materials/confirm/${progressId}/`;
             });
         });
     </script>
