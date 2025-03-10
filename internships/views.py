@@ -1055,3 +1055,6 @@ def generate_pdf(request, intern_id):
     # Возврат ответа с PDF
     response = HttpResponse(pdf_file, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="intern_report_{intern.full_name}.pdf"'
+
+    # Не забудь вернуть ответ
+    return response
