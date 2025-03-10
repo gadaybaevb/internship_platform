@@ -529,6 +529,7 @@ def mentor_view_intern_materials(request, intern_id):
 @login_required
 def confirm_material_completion(request, progress_id):
     print(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
+    print(f"User role: {request.user.role}, Authenticated: {request.user.is_authenticated}")
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
 
     if request.user.role == 'mentor' or request.user.role == 'admin' and request.method == 'POST':
