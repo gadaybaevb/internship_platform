@@ -532,6 +532,8 @@ def confirm_material_completion(request, progress_id):
     print(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
     print(f"User role: {request.user.role}, Authenticated: {request.user.is_authenticated}")
     material_progress = get_object_or_404(MaterialProgress, id=progress_id)
+    print(f"DEBUG: role={request.user.role}, type={type(request.user.role)}, method={request.method}")
+    print(f"DEBUG: Request method={request.method}, Expected='POST'")
 
     if request.user.role == 'mentor' and request.method == 'POST':
         action = request.POST.get('action')
