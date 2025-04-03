@@ -10,7 +10,7 @@ from django.core.paginator import Paginator
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.contrib import messages
-from weasyprint import HTML
+#from weasyprint import HTML
 from django.template.loader import render_to_string
 from users.models import CustomUser
 from django.core.files.storage import default_storage

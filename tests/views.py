@@ -685,7 +685,24 @@ def test_report(request, test_result_id):
         correct_answer_keys_set = set(correct_answer_keys)  # Преобразуем в множество
 
 
-        is_user_correct = user_answer_keys_set == correct_answer_keys_set
+        #is_user_correct = user_answer_keys_set == correct_answer_keys_set
+
+        # Преобразуем одиночный ответ в список
+        if isinstance(user_answer_keys, str):
+            user_answer_keys = [user_answer_keys]
+        elif isinstance(user_answer_keys, int):
+            user_answer_keys = [str(user_answer_keys)]  # Преобразуем в строку и оборачиваем в список
+
+        # Если user_answer_keys содержит JSON-строку, парсим её
+        if len(user_answer_keys) == 1 and isinstance(user_answer_keys[0], str):
+            try:
+                parsed_value = json.loads(user_answer_keys[0])
+                if isinstance(parsed_value, list):
+                    user_answer_keys = list(map(str, parsed_value))  # Декодируем и приводим к строковому формату
+            except json.JSONDecodeError:
+                pass  # Если не JSON, оставляем как есть
+
+        is_user_correct = user_answer_keys == correct_answer_keys  # Обычное сравнение списков
 
         # Добавляем данные вопроса
         questions_with_answers.append({
