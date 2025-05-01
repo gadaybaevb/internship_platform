@@ -684,9 +684,6 @@ def test_report(request, test_result_id):
         user_answer_keys_set = set(user_answer_keys)  # Преобразуем в множество
         correct_answer_keys_set = set(correct_answer_keys)  # Преобразуем в множество
 
-
-        #is_user_correct = user_answer_keys_set == correct_answer_keys_set
-
         # Преобразуем одиночный ответ в список
         if isinstance(user_answer_keys, str):
             user_answer_keys = [user_answer_keys]
@@ -702,7 +699,11 @@ def test_report(request, test_result_id):
             except json.JSONDecodeError:
                 pass  # Если не JSON, оставляем как есть
 
-        is_user_correct = user_answer_keys == correct_answer_keys  # Обычное сравнение списков
+        if question_result.question_type == 'single':
+            is_user_correct = user_answer_keys == correct_answer_keys
+        else:
+            is_user_correct = set(user_answer_keys) == set(correct_answer_keys)
+        #is_user_correct = user_answer_keys == correct_answer_keys  # Обычное сравнение списков
 
         # Добавляем данные вопроса
         questions_with_answers.append({
