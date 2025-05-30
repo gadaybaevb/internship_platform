@@ -165,70 +165,52 @@ def add_question(request, test_id):
             question = question_form.save(commit=False)
             question.test = test
 
-            # Получаем данные о типе вопроса и ответах
             question_type = question.question_type
             answers = [form.cleaned_data for form in formset if form.cleaned_data.get('text')]
 
-            # Валидация ответов на основе типа вопроса
+            # ====== Валидация ======
             if question_type == 'single':
-                correct_answers = [answer for answer in answers if answer.get('is_correct')]
+                correct_answers = [a for a in answers if a.get('is_correct')]
                 if len(correct_answers) != 1:
                     messages.error(request, 'Для типа "single" должен быть выбран ровно один правильный ответ.')
-                    return render(request, 'add_question.html',
-                                  {'question_form': question_form, 'formset': formset, 'test': test})
+                    return render(request, 'add_question.html', {'question_form': question_form, 'formset': formset, 'test': test})
 
-            elif question_type == 'multi':
-                correct_answers = [answer for answer in answers if answer.get('is_correct')]
+            elif question_type == 'multiple':
+                correct_answers = [a for a in answers if a.get('is_correct')]
                 if len(correct_answers) <= 1 or len(correct_answers) == len(answers):
-                    messages.error(request, 'Для типа "multi" выберите больше одного, но не все ответы как правильные.')
-                    return render(request, 'add_question.html',
-                                  {'question_form': question_form, 'formset': formset, 'test': test})
+                    messages.error(request, 'Для типа "multiple" выберите больше одного, но не все ответы как правильные.')
+                    return render(request, 'add_question.html', {'question_form': question_form, 'formset': formset, 'test': test})
 
             elif question_type == 'true_false':
-                if len(answers) != 2 or sum(1 for answer in answers if answer.get('is_correct')) != 1:
-                    messages.error(request,
-                                   'Для типа "true_false" должно быть ровно два ответа, и один из них должен быть правильным.')
-                    return render(request, 'add_question.html',
-                                  {'question_form': question_form, 'formset': formset, 'test': test})
+                if len(answers) != 2 or sum(1 for a in answers if a.get('is_correct')) != 1:
+                    messages.error(request, 'Для типа "true_false" должно быть ровно два ответа, и один из них должен быть правильным.')
+                    return render(request, 'add_question.html', {'question_form': question_form, 'formset': formset, 'test': test})
 
-            # **Обработка типа "соответствие"**
-            elif question_type == 'matching':
-                # Для типа "соответствие" проверяем, что есть пары ответов
-                matching_pairs = [(answer.get('left_text'), answer.get('right_text')) for answer in answers if
-                                  answer.get('left_text') and answer.get('right_text')]
-
-                if len(matching_pairs) < 2:
+            elif question_type == 'match':
+                match_pairs = [a.get('match_pair') for a in answers if a.get('match_pair')]
+                if len(match_pairs) < 2:
                     formset.add_error(None, "Добавьте хотя бы две пары для соответствия.")
-                    return render(request, 'add_question.html',
-                                  {'question_form': question_form, 'formset': formset, 'test': test})
+                    return render(request, 'add_question.html', {'question_form': question_form, 'formset': formset, 'test': test})
 
-                # Сохранение вопроса и ответов
-                question.save()
-                for answer_data in answers:
-                    Answer.objects.create(
-                        question=question,
-                        left_text=answer_data['left_text'],
-                        right_text=answer_data['right_text']
-                    )
+            elif question_type == 'sequence':
+                if not all(a.get('sequence_order') is not None for a in answers):
+                    formset.add_error(None, "Для типа 'sequence' нужно указать порядок для каждого ответа.")
+                    return render(request, 'add_question.html', {'question_form': question_form, 'formset': formset, 'test': test})
 
-                return redirect('test_detail', test_id=test.id)
 
-            # Если все проверки пройдены, сохраняем вопрос и ответы
-            question.save()
-
-            # Для 'true_false' добавляем только два варианта ответа
             if question_type == 'true_false':
                 Answer.objects.create(question=question, text="Верно", is_correct=True)
                 Answer.objects.create(question=question, text="Неверно", is_correct=False)
             else:
-                # Сохраняем ответы для других типов вопросов
                 for form in formset:
-                    if form.cleaned_data.get('text'):  # Проверка, что текст ответа не пустой
+                    if form.cleaned_data.get('text'):
                         answer = form.save(commit=False)
                         answer.question = question
                         answer.save()
 
             return redirect('tests_list')
+            # ====== Сохранение ======
+            question.save()
     else:
         question_form = QuestionForm()
         formset = AnswerFormSet(queryset=Answer.objects.none())
@@ -329,7 +311,7 @@ def edit_question(request, question_id):
                     messages.error(request, 'Для типа "single" должен быть выбран ровно один правильный ответ.')
                     valid = False
 
-            elif question_type == 'multi':
+            elif question_type == 'multiple':
                 correct_answers = [a for a in answers if a.get('is_correct')]
                 if len(correct_answers) <= 1:
                     messages.error(request, 'Для типа "multi" выберите больше одного правильного ответа.')
@@ -399,7 +381,7 @@ def evaluate_test(test, user_answers, request):
         if question.question_type == 'match' and isinstance(user_answer_keys, str):
             try:
                 user_answer_dict = json.loads(user_answer_keys)
-                user_answer_keys = list(user_answer_dict.get("left", []))
+                user_answer_keys = user_answer_dict  # весь словарь, а не список ключей
             except json.JSONDecodeError:
                 user_answer_keys = []
 
@@ -449,7 +431,9 @@ def evaluate_test(test, user_answers, request):
             score = evaluate_match(question, user_answer_keys)
             correct_answer = {str(answer.id): answer.match_pair for answer in question.answers.all()}
             is_correct = score == 1.0
-
+        if not user_answers:
+            messages.error(request, "Вы не ответили ни на один вопрос.")
+            return redirect('test_intro', test_id=test.id)
         # Сохраняем результаты вопроса
         TestQuestionResult.objects.create(
             test_result=test_result,
@@ -466,6 +450,7 @@ def evaluate_test(test, user_answers, request):
         max_score += 1
         if is_correct:
             correct_answers_count += 1
+
 
     # Обновляем итоговый результат теста
     test_result.score = round((total_score / max_score) * 100, 1) if max_score > 0 else 0
@@ -540,14 +525,18 @@ def evaluate_true_false(question, user_answer):
 def evaluate_sequence(question, user_answer):
     """Оценка вопроса типа последовательность (перетаскивание карточек)"""
     # Получаем правильный порядок ответов
-    correct_order = list(question.answers.order_by('id').values_list('id', flat=True))
+    correct_order = list(question.answers.order_by('sequence_order').values_list('id', flat=True))
+
     if not user_answer:
         print("Ответ пользователя отсутствует.")
         return 0.0
 
     # Преобразуем ответ пользователя из JSON-строки в список
     try:
-        user_order_ = json.loads(user_answer)  # Преобразуем JSON в список id
+        if isinstance(user_answer, str):
+            user_order_ = json.loads(user_answer)
+        else:
+            user_order_ = user_answer
         user_order = [int(i) for i in user_order_]
     except (ValueError, TypeError):
         print("Ошибка при обработке ответа.")
