@@ -44,7 +44,12 @@ def take_test(request, test_id):
         request.session['question_order'] = question_ids
 
     # Calculate time left based on fixed start time
-    test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
+    #test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
+    try:
+        test_start_time = timezone.datetime.fromisoformat(request.session['test_start_time'])
+    except (KeyError, ValueError):
+        return finish_test_and_redirect(request, test, "Ошибка времени начала теста.")
+
     time_spent = timezone.now() - test_start_time
     time_left = test.time_limit * 60 - time_spent.total_seconds()
 
@@ -128,9 +133,8 @@ def finish_test_and_redirect(request, test, message):
     messages.success(request, result_message)
 
     # Clean up session data after test completion
-    for key in ['user_answers', 'current_question_number', 'test_start_time', 'time_left']:
-        if key in request.session:
-            del request.session[key]
+    for key in ['user_answers', 'current_question_number', 'test_start_time', 'time_left', 'question_order']:
+        request.session.pop(key, None)
 
     return redirect('test_results', test_id=test.id)
 
@@ -388,8 +392,19 @@ def evaluate_test(test, user_answers, request):
         question = test.questions.get(id=question_id)
         question_id_str = str(question.id)
         options = {str(answer.id): answer.text for answer in question.answers.all()}
+
         user_answer_keys = user_answers.get(question_id_str) or user_answers.get(f"{question_id_str}_matches")
-        user_answer_values = [options.get(str(key), "Неизвестный ответ") for key in user_answer_keys] if user_answer_keys else []
+
+        # Для match: декодируем JSON-строку и преобразуем к списку ключей
+        if question.question_type == 'match' and isinstance(user_answer_keys, str):
+            try:
+                user_answer_dict = json.loads(user_answer_keys)
+                user_answer_keys = list(user_answer_dict.get("left", []))
+            except json.JSONDecodeError:
+                user_answer_keys = []
+
+        user_answer_values = [options.get(str(key), "Неизвестный ответ") for key in
+                              user_answer_keys] if user_answer_keys else []
         is_correct = False
         correct_answer = {}
 
