@@ -438,7 +438,10 @@ def evaluate_test(test, user_answers, request):
             is_correct = score == 1.0
 
         elif question.question_type == 'sequence':
-            score = evaluate_sequence(question, user_answer_keys[0])
+            if isinstance(user_answer_keys, list) and user_answer_keys:
+                score = evaluate_sequence(question, user_answer_keys[0])
+            else:
+                score = 0
             correct_answer = {str(answer.id): answer.text for answer in question.answers.order_by('sequence_order')}
             is_correct = score == 1.0
 
