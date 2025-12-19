@@ -357,123 +357,121 @@ def delete_question(request, question_id):
 
 def evaluate_test(test, user_answers, request):
     total_score = 0.0
-    max_score = 0.0
+    max_score = 0
     correct_answers_count = 0
 
-    # Создаем экземпляр TestResult
     test_result = TestResult.objects.create(
         user=request.user,
         test=test,
-        score=0,  # Оценка будет обновлена позже
+        score=0,
         correct_answers_count=0,
-        total_questions_count=len(request.session.get('question_order', []))  # Учитываем только заданные вопросы
+        total_questions_count=len(request.session.get('question_order', []))
     )
 
-    # Проходим только по заданным вопросам
     for question_id in request.session.get('question_order', []):
         question = test.questions.get(id=question_id)
-        question_id_str = str(question.id)
-        options = {str(answer.id): answer.text for answer in question.answers.all()}
+        qid = str(question.id)
 
-        user_answer_keys = user_answers.get(question_id_str) or user_answers.get(f"{question_id_str}_matches")
+        options = {str(a.id): a.text for a in question.answers.all()}
 
-        # Для match: декодируем JSON-строку и преобразуем к списку ключей
-        if question.question_type == 'match' and isinstance(user_answer_keys, str):
+        user_answer_keys = (
+            user_answers.get(qid)
+            or user_answers.get(f"{qid}_sequence")
+            or user_answers.get(f"{qid}_matches")
+        )
+
+        # ===== Нормализация =====
+        if question.question_type == 'sequence' and isinstance(user_answer_keys, str):
             try:
-                user_answer_dict = json.loads(user_answer_keys)
-                user_answer_keys = user_answer_dict  # весь словарь, а не список ключей
+                user_answer_keys = json.loads(user_answer_keys)
             except json.JSONDecodeError:
                 user_answer_keys = []
 
-        user_answer_values = [options.get(str(key), "Неизвестный ответ") for key in
-                              user_answer_keys] if user_answer_keys else []
-        is_correct = False
-        correct_answer = {}
+        if question.question_type == 'match' and isinstance(user_answer_keys, str):
+            try:
+                user_answer_keys = json.loads(user_answer_keys)
+            except json.JSONDecodeError:
+                user_answer_keys = {}
 
-        # Преобразуем keys в список, если он строка
         if isinstance(user_answer_keys, str):
             user_answer_keys = [user_answer_keys]
 
-        if user_answer_keys is None:
-            user_answer_keys = []
-        # elif user_answer_values is None:
-        #     user_answer_values = []
-            # Если values пустые или содержат только "Неизвестный ответ", заменяем на keys
-        if not user_answer_values or all(v == "Неизвестный ответ" for v in user_answer_values):
-            user_answer_values = [options.get(k, "Неизвестный ответ") for k in user_answer_keys] if options else []
+        user_answer_keys = user_answer_keys or []
 
-        # Обработка разных типов вопросов
-        if question.question_type == 'single':
-            score = evaluate_single(question, user_answer_values[0])
-            correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
-            is_correct = score == 1.0
+        user_answer_values = [
+            options.get(str(k), "Неизвестный ответ")
+            for k in user_answer_keys
+        ]
+
+        score = 0.0
+        is_correct = False
+        correct_answer = {}
+
+        # ===== Оценка =====
+        if question.question_type in ['single', 'true_false']:
+            if user_answer_keys:
+                score = evaluate_single(question, user_answer_keys[0])
+            correct_answer = {
+                str(a.id): a.text
+                for a in question.answers.filter(is_correct=True)
+            }
 
         elif question.question_type == 'multiple':
             score = evaluate_multiple(question, user_answer_keys)
-            correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
-            is_correct = score == 1.0
-
-        elif question.question_type == 'true_false':
-            score = evaluate_single(question, user_answer_values[0])
-            # score = evaluate_true_false(question, user_answer_keys[0])
-            correct_answer = {str(answer.id): answer.text for answer in question.answers.filter(is_correct=True)}
-            is_correct = score == 1.0
+            correct_answer = {
+                str(a.id): a.text
+                for a in question.answers.filter(is_correct=True)
+            }
 
         elif question.question_type == 'sequence':
-            if isinstance(user_answer_keys, list) and user_answer_keys:
-                score = evaluate_sequence(question, user_answer_keys[0])
-            else:
-                score = 0
-            correct_answer = {str(answer.id): answer.text for answer in question.answers.order_by('sequence_order')}
-            is_correct = score == 1.0
+            score = evaluate_sequence(question, user_answer_keys)
+            correct_answer = {
+                str(a.id): a.text
+                for a in question.answers.order_by('sequence_order')
+            }
 
         elif question.question_type == 'match':
             score = evaluate_match(question, user_answer_keys)
-            correct_answer = {str(answer.id): answer.match_pair for answer in question.answers.all()}
-            is_correct = score == 1.0
-        if not user_answers:
-            messages.error(request, "Вы не ответили ни на один вопрос.")
-            return redirect('test_intro', test_id=test.id)
-        # Сохраняем результаты вопроса
+            correct_answer = {
+                str(a.id): a.match_pair
+                for a in question.answers.all()
+            }
+
+        is_correct = score == 1.0
+
         TestQuestionResult.objects.create(
             test_result=test_result,
             question_text=question.text,
             question_type=question.question_type,
             options=options,
-            user_answer={"keys": user_answer_keys, "values": user_answer_values},  # Сохраняем ключи и текстовые значения
-            correct_answer=correct_answer,  # Запись правильного ответа
+            user_answer={
+                "keys": user_answer_keys,
+                "values": user_answer_values
+            },
+            correct_answer=correct_answer,
             is_correct=is_correct
         )
 
-        # Обновляем общие показатели
         total_score += score
         max_score += 1
         if is_correct:
             correct_answers_count += 1
 
-
-    # Обновляем итоговый результат теста
-    test_result.score = round((total_score / max_score) * 100, 1) if max_score > 0 else 0
+    test_result.score = round((total_score / max_score) * 100, 1) if max_score else 0
     test_result.correct_answers_count = correct_answers_count
     test_result.save()
 
     return test_result.score
 
 
-def evaluate_single(question, user_answer):
-    """Оценка вопроса с одним верным ответом"""
+def evaluate_single(question, user_answer_id):
+    """Оценка вопроса с одним верным ответом (по ID)"""
     correct_answer = question.answers.filter(is_correct=True).first()
-    # Проверяем, что пользователь выбрал ответ
-    if user_answer is None:
-        return 0.0  # Если ответа нет, возвращаем 0 баллов
-    try:
-        if str(correct_answer) == str(user_answer):
-            return 1.0  # Верный ответ, полный балл
-    except (ValueError, TypeError):
-        print("Ошибка преобразования ответа в число")
-        return 0.0  # Неверный ответ или некорректный формат
 
-    return 0.0  # Неверный ответ
+    if not correct_answer or not user_answer_id:
+        return 0.0
+
+    return 1.0 if str(correct_answer.id) == str(user_answer_id) else 0.0
 
 
 def evaluate_multiple(question, user_answers):
@@ -522,30 +520,22 @@ def evaluate_true_false(question, user_answer):
     return 0.0  # Неверный ответ
 
 
-def evaluate_sequence(question, user_answer):
-    """Оценка вопроса типа последовательность (перетаскивание карточек)"""
-    # Получаем правильный порядок ответов
-    correct_order = list(question.answers.order_by('sequence_order').values_list('id', flat=True))
+def evaluate_sequence(question, user_answer_ids):
+    """Оценка вопроса типа последовательность"""
+    correct_order = list(
+        question.answers.order_by('sequence_order')
+        .values_list('id', flat=True)
+    )
 
-    if not user_answer:
-        print("Ответ пользователя отсутствует.")
+    if not user_answer_ids:
         return 0.0
 
-    # Преобразуем ответ пользователя из JSON-строки в список
     try:
-        if isinstance(user_answer, str):
-            user_order_ = json.loads(user_answer)
-        else:
-            user_order_ = user_answer
-        user_order = [int(i) for i in user_order_]
+        user_order = [int(i) for i in user_answer_ids]
     except (ValueError, TypeError):
-        print("Ошибка при обработке ответа.")
         return 0.0
 
-    # Сравниваем правильную последовательность с пользовательской
-    if correct_order == user_order:
-        return 1.0
-    return 0.0
+    return 1.0 if correct_order == user_order else 0.0
 
 
 def evaluate_match(question, user_answer):
@@ -727,9 +717,6 @@ def test_report(request, test_result_id):
         'questions_with_answers': questions_with_answers,
         'test_date': test_result.completed_at.strftime('%d.%m.%Y %H:%M')
     })
-
-
-
 
 
 
