@@ -806,10 +806,24 @@ def department_materials_report(request):
 
 @staff_member_required
 def weekly_report(request):
-    # Выбираем всех стажеров
-    interns = Internship.objects.all()
+    if request.method == 'GET':
+        return render(request, 'weekly_report_form.html')
 
-    # Создаем список для данных отчета
+    start_date = request.POST.get('start_date')
+    end_date = request.POST.get('end_date')
+
+    if not start_date or not end_date:
+        messages.error(request, "Выберите период дат")
+        return redirect('weekly_report')
+
+    start_date = timezone.datetime.fromisoformat(start_date)
+    end_date = timezone.datetime.fromisoformat(end_date) + timedelta(days=1)
+
+    # Стажировки, которые пересекаются с периодом
+    interns = Internship.objects.filter(start_date__lte=end_date).select_related(
+        'intern', 'mentor', 'position__department'
+    )
+
     report_data = []
 
     for index, internship in enumerate(interns, start=1):
@@ -818,85 +832,69 @@ def weekly_report(request):
         department = position.department.name if position and position.department else "No Department"
         supervisor = internship.mentor
 
-        # Подсчет материалов
-        total_materials = Material.objects.filter(position=position).count()  # Общее количество материалов
-        completed_materials = MaterialProgress.objects.filter(intern=intern, completed=True).count()  # Количество завершенных материалов
+        total_materials = Material.objects.filter(position=position).count()
+        completed_materials = MaterialProgress.objects.filter(
+            intern=intern,
+            material__position=position,
+            completed=True
+        ).count()
 
-        # Отладочная информация
+        test_results = TestResult.objects.filter(user=intern).order_by('-completed_at')
+        mid_test = test_results.filter(test__stage_number=1).first()
+        final_test = test_results.filter(test__stage_number=2).first()
 
-        # Проверяем, что есть данные
-        all_test_results = TestResult.objects.filter(user=intern)
-
-
-        # Попробуем найти результаты по одному полю, чтобы отладить
-        if all_test_results.filter(test__position=position).exists():
-            print("Data exists for intern and position.")
-
-        mid_test_result = all_test_results.filter(test__position=position, test__stage_number=1).first()
-        final_test_result = all_test_results.filter(test__position=position, test__stage_number=2).first()
-
-
-
-        # Добавление данных в отчет
         report_data.append({
-            '№': index,  # Нумерация
+            '№': index,
             'Employee': intern.full_name,
-            'Department': department,  # Новый столбец "Department"
+            'Department': department,
             'Position': position.name if position else 'Нет позиции',
-            'Hiring date': internship.start_date.strftime('%d.%m.%Y'),
-            'Probation ending day': (internship.start_date + timezone.timedelta(days=90)).strftime('%d.%m.%Y'),
+            'Start Date': internship.start_date.strftime('%d.%m.%Y'),
+            'Probation End': (internship.start_date + timedelta(days=90)).strftime('%d.%m.%Y'),
             'Supervisor': supervisor.full_name if supervisor else "No Supervisor",
-            'Status': "on a probation" if completed_materials < total_materials else "completed",
-            'Materials passed': f"{completed_materials}/{total_materials}",
-            'Mid test': mid_test_result.score if mid_test_result else "Not taken",
-            'Final test': final_test_result.score if final_test_result else "Not taken"
+            'Status': "on probation" if completed_materials < total_materials else "completed",
+            'Materials Passed': f"{completed_materials}/{total_materials}",
+            'Mid Test': mid_test.score if mid_test else "Not taken",
+            'Final Test': final_test.score if final_test else "Not taken"
         })
 
-    # Создаем DataFrame
     df = pd.DataFrame(report_data)
 
-    # Устанавливаем заголовок
-    current_date = timezone.now().date().strftime('%d.%m.%Y')
-    header = f"Недельный отчет на {current_date}"
+    period_label = f"{start_date:%d.%m.%Y}–{end_date - timedelta(days=1):%d.%m.%Y}"
+    safe_period_label = f"{start_date:%d_%m_%Y}_{(end_date - timedelta(days=1)):%d_%m_%Y}"
 
-    # Настраиваем ответ для скачивания файла
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename="weekly_report_{current_date}.xlsx"'
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="weekly_report_period_{safe_period_label}.xlsx"'
 
-    # Сохранение в Excel с учетом заголовка и двух пустых строк
     with pd.ExcelWriter(response, engine='openpyxl') as writer:
-        # Создаем новый лист
-        sheet_name = 'Weekly Report'
-        df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=3)  # Записываем данные с 4-й строки
+        df.to_excel(writer, index=False, startrow=3, sheet_name='Report')
+        sheet = writer.book['Report']
 
-        # Получаем книгу и лист для добавления заголовка и пустых строк
-        workbook = writer.book
-        sheet = workbook[sheet_name]
+        # Заголовок
+        sheet['A1'] = f"Отчет за период: {period_label}"
+        sheet.merge_cells('A1:J1')
+        sheet['A1'].font = Font(size=14, bold=True)
 
-        # Добавляем заголовок и объединяем его ячейки
-        sheet['A1'] = header
-        sheet.merge_cells('A1:L1')  # Объединяем ячейки для заголовка по ширине таблицы
-        sheet['A1'].font = Font(size=14, bold=True)  # Жирный шрифт для заголовка
-
-        # Применяем жирный шрифт ко всем заголовкам столбцов
-        for cell in sheet[4]:  # Заголовки находятся в 4-й строке (индекс строки смещен на две пустые строки и заголовок)
+        # Жирные заголовки столбцов
+        for cell in sheet[4]:
             cell.font = Font(bold=True)
 
-        # Устанавливаем автоширину для всех столбцов, кроме первого
+        # Автоширина колонок
         for i, column_cells in enumerate(sheet.columns):
-            if i == 0:  # Пропускаем первый столбец (№)
-                sheet.column_dimensions[column_cells[0].column_letter].width = 5  # Устанавливаем фиксированную ширину для первого столбца
+            if i == 0:
+                # Первая колонка фиксированной ширины
+                sheet.column_dimensions[column_cells[0].column_letter].width = 5
                 continue
 
-            # Пропускаем объединенные ячейки и находим первую не объединенную ячейку для получения буквы столбца
+            # Ищем первую не объединённую ячейку для буквы столбца
             for cell in column_cells:
                 if not isinstance(cell, MergedCell):
                     column_letter = cell.column_letter
                     break
 
-            # Для остальных столбцов вычисляем автоширину
             max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
-            adjusted_width = max_length + 2  # Добавляем немного отступа
+            adjusted_width = max_length + 2
             sheet.column_dimensions[column_letter].width = adjusted_width
 
     return response
