@@ -816,28 +816,31 @@ def weekly_report(request):
         messages.error(request, "Выберите период дат")
         return redirect('weekly_report')
 
-    start_date = timezone.datetime.fromisoformat(start_date)
-    end_date = timezone.datetime.fromisoformat(end_date) + timedelta(days=1)
+    # Приводим к типу date
+    start_date = timezone.datetime.fromisoformat(start_date).date()
+    end_date = (timezone.datetime.fromisoformat(end_date) + timedelta(days=1)).date()
 
-    # Стажировки, которые пересекаются с периодом
-    interns = Internship.objects.filter(start_date__lte=end_date).select_related(
-        'intern', 'mentor', 'position__department'
-    )
+    # Получаем все стажировки
+    interns = Internship.objects.select_related('intern', 'mentor', 'position__department').all()
 
     report_data = []
 
-    for index, internship in enumerate(interns, start=1):
+    index = 1
+    for internship in interns:
         intern = internship.intern
         position = internship.position
         if not position:
             continue
 
+        # Даты стажировки
+        internship_start = internship.start_date
         internship_end = internship.start_date + timedelta(days=90)
 
-        # Пропускаем стажировки, полностью вне периода
-        if internship_end < start_date or internship.start_date > end_date:
+        # Фильтруем стажировки вне выбранного периода
+        if internship_end < start_date or internship_start > end_date:
             continue
 
+        # Проверяем материалы
         total_materials = Material.objects.filter(position=position).count()
         completed_materials = MaterialProgress.objects.filter(
             intern=intern,
@@ -846,14 +849,25 @@ def weekly_report(request):
         ).count()
         all_materials_completed = completed_materials >= total_materials
 
+        # Проверяем тесты
         test_results = TestResult.objects.filter(user=intern).order_by('-completed_at')
         mid_test = test_results.filter(test__stage_number=1).first()
         final_test = test_results.filter(test__stage_number=2).first()
         all_tests_completed = (mid_test is not None) and (final_test is not None)
 
-        # Пропускаем стажеров, которые уже полностью завершили материалы и тесты
+        # Пропускаем стажеров, которые полностью завершили материалы и тесты
         if all_materials_completed and all_tests_completed:
             continue
+
+        # Фильтруем по дате прохождения тестов (если есть)
+        if mid_test:
+            mid_test_date = mid_test.completed_at.date()
+            if mid_test_date < start_date or mid_test_date > end_date:
+                pass  # Можно оставить или использовать для дополнительной фильтрации
+        if final_test:
+            final_test_date = final_test.completed_at.date()
+            if final_test_date < start_date or final_test_date > end_date:
+                pass  # Можно оставить или использовать для дополнительной фильтрации
 
         supervisor = internship.mentor
         department = position.department.name if position.department else "No Department"
@@ -863,7 +877,7 @@ def weekly_report(request):
             'Employee': intern.full_name,
             'Department': department,
             'Position': position.name,
-            'Start Date': internship.start_date.strftime('%d.%m.%Y'),
+            'Start Date': internship_start.strftime('%d.%m.%Y'),
             'Probation End': internship_end.strftime('%d.%m.%Y'),
             'Supervisor': supervisor.full_name if supervisor else "No Supervisor",
             'Status': "on probation",
@@ -871,10 +885,11 @@ def weekly_report(request):
             'Mid Test': mid_test.score if mid_test else "Not taken",
             'Final Test': final_test.score if final_test else "Not taken"
         })
+        index += 1
 
     df = pd.DataFrame(report_data)
 
-    period_label = f"{start_date:%d.%m.%Y}–{end_date - timedelta(days=1):%d.%m.%Y}"
+    period_label = f"{start_date:%d.%m.%Y}–{(end_date - timedelta(days=1)):%d.%m.%Y}"
     safe_period_label = f"{start_date:%d_%m_%Y}_{(end_date - timedelta(days=1)):%d_%m_%Y}"
 
     response = HttpResponse(
@@ -898,19 +913,14 @@ def weekly_report(request):
         # Автоширина колонок
         for i, column_cells in enumerate(sheet.columns):
             if i == 0:
-                # Первая колонка фиксированной ширины
                 sheet.column_dimensions[column_cells[0].column_letter].width = 5
                 continue
-
-            # Ищем первую не объединённую ячейку для буквы столбца
             for cell in column_cells:
                 if not isinstance(cell, MergedCell):
                     column_letter = cell.column_letter
                     break
-
             max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
-            adjusted_width = max_length + 2
-            sheet.column_dimensions[column_letter].width = adjusted_width
+            sheet.column_dimensions[column_letter].width = max_length + 2
 
     return response
 
