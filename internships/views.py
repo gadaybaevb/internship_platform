@@ -829,8 +829,14 @@ def weekly_report(request):
     for index, internship in enumerate(interns, start=1):
         intern = internship.intern
         position = internship.position
-        department = position.department.name if position and position.department else "No Department"
-        supervisor = internship.mentor
+        if not position:
+            continue
+
+        internship_end = internship.start_date + timedelta(days=90)
+
+        # Пропускаем стажировки, полностью вне периода
+        if internship_end < start_date or internship.start_date > end_date:
+            continue
 
         total_materials = Material.objects.filter(position=position).count()
         completed_materials = MaterialProgress.objects.filter(
@@ -838,20 +844,29 @@ def weekly_report(request):
             material__position=position,
             completed=True
         ).count()
+        all_materials_completed = completed_materials >= total_materials
 
         test_results = TestResult.objects.filter(user=intern).order_by('-completed_at')
         mid_test = test_results.filter(test__stage_number=1).first()
         final_test = test_results.filter(test__stage_number=2).first()
+        all_tests_completed = (mid_test is not None) and (final_test is not None)
+
+        # Пропускаем стажеров, которые уже полностью завершили материалы и тесты
+        if all_materials_completed and all_tests_completed:
+            continue
+
+        supervisor = internship.mentor
+        department = position.department.name if position.department else "No Department"
 
         report_data.append({
             '№': index,
             'Employee': intern.full_name,
             'Department': department,
-            'Position': position.name if position else 'Нет позиции',
+            'Position': position.name,
             'Start Date': internship.start_date.strftime('%d.%m.%Y'),
-            'Probation End': (internship.start_date + timedelta(days=90)).strftime('%d.%m.%Y'),
+            'Probation End': internship_end.strftime('%d.%m.%Y'),
             'Supervisor': supervisor.full_name if supervisor else "No Supervisor",
-            'Status': "on probation" if completed_materials < total_materials else "completed",
+            'Status': "on probation",
             'Materials Passed': f"{completed_materials}/{total_materials}",
             'Mid Test': mid_test.score if mid_test else "Not taken",
             'Final Test': final_test.score if final_test else "Not taken"
