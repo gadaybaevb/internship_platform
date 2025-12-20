@@ -30,6 +30,10 @@ from unidecode import unidecode
 from django.http import HttpResponse
 from openpyxl import Workbook
 from django.contrib.auth.decorators import user_passes_test
+from internships.analytics.material_stats import material_time_stats
+from internships.analytics.internship_stats import internship_duration_stats
+from internships.analytics.test_stats import test_quality_stats
+from internships.analytics.department_stats import department_analytics
 
 User = get_user_model()
 
@@ -809,6 +813,9 @@ def weekly_report(request):
     if request.method == 'GET':
         return render(request, 'weekly_report_form.html')
 
+    # ------------------------------------------------------------------
+    # ДАТЫ
+    # ------------------------------------------------------------------
     start_date = request.POST.get('start_date')
     end_date = request.POST.get('end_date')
 
@@ -816,10 +823,12 @@ def weekly_report(request):
         messages.error(request, "Выберите период дат")
         return redirect('weekly_report')
 
-    # Работаем ТОЛЬКО с date
     start_date = timezone.datetime.fromisoformat(start_date).date()
     end_date = timezone.datetime.fromisoformat(end_date).date()
 
+    # ------------------------------------------------------------------
+    # СТАЖИРОВКИ
+    # ------------------------------------------------------------------
     internships = Internship.objects.select_related(
         'intern', 'mentor', 'position__department'
     )
@@ -830,10 +839,13 @@ def weekly_report(request):
     for internship in internships:
         intern = internship.intern
         position = internship.position
-        if not position:
+
+        if not intern or not position:
             continue
 
-        # ---------- STAGE PROGRESS ----------
+        # ==============================================================
+        # STAGE PROGRESS
+        # ==============================================================
         stages_qs = StageProgress.objects.filter(
             intern=intern,
             position=position
@@ -848,7 +860,9 @@ def weekly_report(request):
 
         stage_relevant = unfinished_stage_exists or completed_stage_in_period
 
-        # ---------- TEST RESULTS ----------
+        # ==============================================================
+        # TEST RESULTS
+        # ==============================================================
         tests_qs = TestResult.objects.filter(user=intern)
 
         test_in_period = tests_qs.filter(
@@ -857,12 +871,15 @@ def weekly_report(request):
 
         no_tests_at_all = not tests_qs.exists()
 
-        # ---------- FINAL DECISION ----------
-        # Показываем, если есть активность по этапам ИЛИ тестам
+        # ==============================================================
+        # РЕШЕНИЕ: ПОКАЗЫВАТЬ ИЛИ НЕТ
+        # ==============================================================
         if not (stage_relevant or test_in_period or no_tests_at_all):
             continue
 
-        # ---------- DATA FOR REPORT ----------
+        # ==============================================================
+        # МАТЕРИАЛЫ
+        # ==============================================================
         total_materials = Material.objects.filter(position=position).count()
         completed_materials = MaterialProgress.objects.filter(
             intern=intern,
@@ -870,13 +887,25 @@ def weekly_report(request):
             completed=True
         ).count()
 
+        # ==============================================================
+        # ТЕСТЫ
+        # ==============================================================
         test_results = tests_qs.order_by('-completed_at')
         mid_test = test_results.filter(test__stage_number=1).first()
         final_test = test_results.filter(test__stage_number=2).first()
 
-        internship_end = internship.start_date + timedelta(days=90)
+        # ==============================================================
+        # ДАТЫ СТАЖИРОВКИ
+        # ==============================================================
+        duration_days = position.duration_days if hasattr(position, 'duration_days') else 90
+        internship_end = internship.start_date + timedelta(days=duration_days)
 
+        # ==============================================================
+        # DATA ROW
+        # ==============================================================
         report_data.append({
+            '_intern': intern,  # служебное поле для аналитики
+
             '№': index,
             'Employee': intern.full_name,
             'Department': position.department.name if position.department else "No Department",
@@ -892,40 +921,124 @@ def weekly_report(request):
 
         index += 1
 
+    # ------------------------------------------------------------------
+    # ЕСЛИ НЕТ ДАННЫХ
+    # ------------------------------------------------------------------
+    if not report_data:
+        messages.warning(request, "Нет данных за выбранный период")
+        return redirect('weekly_report')
+
+    # ------------------------------------------------------------------
+    # АНАЛИТИКА
+    # ------------------------------------------------------------------
+    interns = [row['_intern'] for row in report_data]
+
+    material_stats = material_time_stats(interns)
+    internship_stats = internship_duration_stats(interns)
+    test_stats = test_quality_stats(interns)
+    department_stats = department_analytics(interns)
+
+    # ------------------------------------------------------------------
+    # DATAFRAME
+    # ------------------------------------------------------------------
     df = pd.DataFrame(report_data)
+    df = df.drop(columns=['_intern'])
 
-    period_label = f"{start_date:%d.%m.%Y}–{(end_date - timedelta(days=1)):%d.%m.%Y}"
-    safe_period_label = f"{start_date:%d_%m_%Y}_{(end_date - timedelta(days=1)):%d_%m_%Y}"
+    period_label = f"{start_date:%d.%m.%Y} – {end_date:%d.%m.%Y}"
+    safe_period_label = f"{start_date:%d_%m_%Y}_{end_date:%d_%m_%Y}"
 
+    # ------------------------------------------------------------------
+    # EXCEL
+    # ------------------------------------------------------------------
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response['Content-Disposition'] = f'attachment; filename="weekly_report_period_{safe_period_label}.xlsx"'
+    response['Content-Disposition'] = (
+        f'attachment; filename="weekly_report_{safe_period_label}.xlsx"'
+    )
 
     with pd.ExcelWriter(response, engine='openpyxl') as writer:
+        # =========================
+        # SHEET: REPORT
+        # =========================
         df.to_excel(writer, index=False, startrow=3, sheet_name='Report')
         sheet = writer.book['Report']
 
-        # Заголовок
         sheet['A1'] = f"Отчет за период: {period_label}"
         sheet.merge_cells('A1:J1')
         sheet['A1'].font = Font(size=14, bold=True)
 
-        # Жирные заголовки столбцов
         for cell in sheet[4]:
             cell.font = Font(bold=True)
 
-        # Автоширина колонок
         for i, column_cells in enumerate(sheet.columns):
             if i == 0:
                 sheet.column_dimensions[column_cells[0].column_letter].width = 5
                 continue
+
             for cell in column_cells:
                 if not isinstance(cell, MergedCell):
-                    column_letter = cell.column_letter
+                    col_letter = cell.column_letter
                     break
-            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
-            sheet.column_dimensions[column_letter].width = max_length + 2
+
+            max_len = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
+            sheet.column_dimensions[col_letter].width = max_len + 2
+
+        # =========================
+        # SHEET: ANALYTICS
+        # =========================
+        analytics = writer.book.create_sheet('Analytics')
+        row = 1
+
+        analytics[f"A{row}"] = "АНАЛИТИКА ПО СТАЖИРОВКАМ"
+        analytics[f"A{row}"].font = Font(size=14, bold=True)
+        row += 2
+
+        # ---- Материалы
+        analytics[f"A{row}"] = "Материалы"
+        analytics[f"A{row}"].font = Font(bold=True)
+        row += 1
+
+        for k, v in material_stats.items():
+            analytics[f"A{row}"] = k.replace('_', ' ').title()
+            analytics[f"B{row}"] = v
+            row += 1
+
+        row += 1
+
+        # ---- Стажировка
+        analytics[f"A{row}"] = "Стажировка"
+        analytics[f"A{row}"].font = Font(bold=True)
+        row += 1
+
+        for k, v in internship_stats.items():
+            analytics[f"A{row}"] = k.replace('_', ' ').title()
+            analytics[f"B{row}"] = v
+            row += 1
+
+        row += 1
+
+        # ---- Тесты
+        analytics[f"A{row}"] = "Сложность тестов"
+        analytics[f"A{row}"].font = Font(bold=True)
+        row += 1
+
+        for test in test_stats.get('hardest_tests', []):
+            analytics[f"A{row}"] = test['test']
+            analytics[f"B{row}"] = f"{test['avg_accuracy']}%"
+            row += 1
+
+        row += 1
+
+        # ---- Департаменты
+        analytics[f"A{row}"] = "Департаменты"
+        analytics[f"A{row}"].font = Font(bold=True)
+        row += 1
+
+        for dep in department_stats:
+            analytics[f"A{row}"] = dep['department']
+            analytics[f"B{row}"] = dep['avg_accuracy']
+            row += 1
 
     return response
 
