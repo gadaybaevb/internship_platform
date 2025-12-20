@@ -816,75 +816,80 @@ def weekly_report(request):
         messages.error(request, "Выберите период дат")
         return redirect('weekly_report')
 
-    # Приводим к типу date
+    # Работаем ТОЛЬКО с date
     start_date = timezone.datetime.fromisoformat(start_date).date()
-    end_date = (timezone.datetime.fromisoformat(end_date) + timedelta(days=1)).date()
+    end_date = timezone.datetime.fromisoformat(end_date).date()
 
-    # Получаем все стажировки
-    interns = Internship.objects.select_related('intern', 'mentor', 'position__department').all()
+    internships = Internship.objects.select_related(
+        'intern', 'mentor', 'position__department'
+    )
 
     report_data = []
-
     index = 1
-    for internship in interns:
+
+    for internship in internships:
         intern = internship.intern
         position = internship.position
         if not position:
             continue
 
-        # Даты стажировки
-        internship_start = internship.start_date
-        internship_end = internship.start_date + timedelta(days=90)
+        # ---------- STAGE PROGRESS ----------
+        stages_qs = StageProgress.objects.filter(
+            intern=intern,
+            position=position
+        )
 
-        # Фильтруем стажировки вне выбранного периода
-        if internship_end < start_date or internship_start > end_date:
+        unfinished_stage_exists = stages_qs.filter(completed=False).exists()
+
+        completed_stage_in_period = stages_qs.filter(
+            completed=True,
+            completion_date__date__range=(start_date, end_date)
+        ).exists()
+
+        stage_relevant = unfinished_stage_exists or completed_stage_in_period
+
+        # ---------- TEST RESULTS ----------
+        tests_qs = TestResult.objects.filter(user=intern)
+
+        test_in_period = tests_qs.filter(
+            completed_at__date__range=(start_date, end_date)
+        ).exists()
+
+        no_tests_at_all = not tests_qs.exists()
+
+        # ---------- FINAL DECISION ----------
+        # Показываем, если есть активность по этапам ИЛИ тестам
+        if not (stage_relevant or test_in_period or no_tests_at_all):
             continue
 
-        # Проверяем материалы
+        # ---------- DATA FOR REPORT ----------
         total_materials = Material.objects.filter(position=position).count()
         completed_materials = MaterialProgress.objects.filter(
             intern=intern,
             material__position=position,
             completed=True
         ).count()
-        all_materials_completed = completed_materials >= total_materials
 
-        # Проверяем тесты
-        test_results = TestResult.objects.filter(user=intern).order_by('-completed_at')
+        test_results = tests_qs.order_by('-completed_at')
         mid_test = test_results.filter(test__stage_number=1).first()
         final_test = test_results.filter(test__stage_number=2).first()
-        all_tests_completed = (mid_test is not None) and (final_test is not None)
 
-        # Пропускаем стажеров, которые полностью завершили материалы и тесты
-        if all_materials_completed and all_tests_completed:
-            continue
-
-        # Фильтруем по дате прохождения тестов (если есть)
-        if mid_test:
-            mid_test_date = mid_test.completed_at.date()
-            if mid_test_date < start_date or mid_test_date > end_date:
-                pass  # Можно оставить или использовать для дополнительной фильтрации
-        if final_test:
-            final_test_date = final_test.completed_at.date()
-            if final_test_date < start_date or final_test_date > end_date:
-                pass  # Можно оставить или использовать для дополнительной фильтрации
-
-        supervisor = internship.mentor
-        department = position.department.name if position.department else "No Department"
+        internship_end = internship.start_date + timedelta(days=90)
 
         report_data.append({
             '№': index,
             'Employee': intern.full_name,
-            'Department': department,
+            'Department': position.department.name if position.department else "No Department",
             'Position': position.name,
-            'Start Date': internship_start.strftime('%d.%m.%Y'),
+            'Start Date': internship.start_date.strftime('%d.%m.%Y'),
             'Probation End': internship_end.strftime('%d.%m.%Y'),
-            'Supervisor': supervisor.full_name if supervisor else "No Supervisor",
+            'Supervisor': internship.mentor.full_name if internship.mentor else "No Supervisor",
             'Status': "on probation",
             'Materials Passed': f"{completed_materials}/{total_materials}",
             'Mid Test': mid_test.score if mid_test else "Not taken",
-            'Final Test': final_test.score if final_test else "Not taken"
+            'Final Test': final_test.score if final_test else "Not taken",
         })
+
         index += 1
 
     df = pd.DataFrame(report_data)
