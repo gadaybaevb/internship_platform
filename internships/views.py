@@ -1037,7 +1037,7 @@ def weekly_report(request):
 
         for dep in department_stats:
             analytics[f"A{row}"] = dep['department']
-            analytics[f"B{row}"] = dep['avg_accuracy']
+            analytics[f"B{row}"] = f"{dep['avg_accuracy']}%"
             row += 1
 
     return response
