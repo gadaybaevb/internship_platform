@@ -45,23 +45,6 @@
         {% else %}
           <p>Пока нет данных</p>
         {% endif %}
-        <table border="1" cellpadding="6">
-          <tr>
-            <th>Стажёр</th>
-            <th>Материалы</th>
-            <th>%</th>
-            <th>Статус</th>
-          </tr>
-        
-          {% for stat in intern_stats %}
-          <tr>
-            <td>{{ stat.intern.full_name }}</td>
-            <td>{{ stat.completed }} / {{ stat.total }}</td>
-            <td>{{ stat.percent }}%</td>
-            <td>{{ stat.status }}</td>
-          </tr>
-          {% endfor %}
-        </table>
         <h3>👥 Мои стажёры</h3>
 
             {% if intern_stats %}
