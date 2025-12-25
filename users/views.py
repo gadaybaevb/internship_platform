@@ -9,7 +9,7 @@ from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth import update_session_auth_hash
 from django.contrib import messages
 from django.urls import reverse_lazy
-from internships.models import Internship, MaterialProgress, StageProgress
+from internships.models import Internship, MaterialProgress, StageProgress, Material
 from django.utils.timezone import now
 from datetime import timedelta, date
 from django.utils.timezone import now
@@ -28,34 +28,147 @@ def home(request):
         return redirect('login')
 
     if user.role == 'admin':
-        # Администраторский контент
-        current_month = now().month
-        current_year = now().year
+        today = now()
+        current_month = today.month
+        current_year = today.year
 
-        interns_this_month = Internship.objects.filter(start_date__month=current_month, start_date__year=current_year).count()
-        mentors_this_month = Internship.objects.filter(start_date__month=current_month, start_date__year=current_year).values('mentor').distinct().count()
+        # ===== СТАЖЁРЫ И МЕНТОРЫ =====
+        interns_this_month = Internship.objects.filter(
+            start_date__month=current_month,
+            start_date__year=current_year
+        ).count()
+
+        mentors_this_month = Internship.objects.filter(
+            start_date__month=current_month,
+            start_date__year=current_year
+        ).exclude(mentor=None).values('mentor').distinct().count()
 
         total_interns = Internship.objects.count()
-        total_mentors = Internship.objects.values('mentor').distinct().count()
+        total_mentors = Internship.objects.exclude(mentor=None).values('mentor').distinct().count()
+
+        # ===== МАТЕРИАЛЫ =====
+        total_materials_progress = MaterialProgress.objects.count()
+        completed_materials_total = MaterialProgress.objects.filter(status='completed').count()
+
+        total_completion_percent = (
+            round((completed_materials_total / total_materials_progress) * 100, 2)
+            if total_materials_progress else 0
+        )
+
+        # ===== АКТИВНЫЕ СТАЖЁРЫ =====
+        active_interns = Internship.objects.select_related('intern', 'position')
+
+        active_stats = []
+        intern_of_month = None
+        best_percent = 0
+
+        for internship in active_interns:
+            intern = internship.intern
+
+            total_materials = Material.objects.filter(
+                position=internship.position
+            ).count()
+
+            completed_materials = MaterialProgress.objects.filter(
+                intern=intern,
+                status='completed'
+            ).count()
+
+            percent = round((completed_materials / total_materials) * 100, 2) if total_materials else 0
+
+            active_stats.append({
+                'intern': intern,
+                'completed': completed_materials,
+                'total': total_materials,
+                'percent': percent,
+            })
+
+            # Стажёр месяца
+            if percent > best_percent:
+                best_percent = percent
+                intern_of_month = intern
 
         context.update({
+            # Месяц
             'interns_this_month': interns_this_month,
             'mentors_this_month': mentors_this_month,
+
+            # Всего
             'total_interns': total_interns,
             'total_mentors': total_mentors,
+
+            # Материалы
+            'total_completion_percent': total_completion_percent,
+            'active_stats': active_stats,
+
+            # ТОП
+            'intern_of_month': intern_of_month,
+            'intern_of_month_percent': best_percent,
         })
 
+
+
     elif user.role == 'mentor':
-        # Контент для ментора
-        current_month = now().month
-        current_year = now().year
+        today = now()
+        current_month = today.month
+        current_year = today.year
+        internships = Internship.objects.filter(
+            mentor=user
+        ).select_related('intern', 'position')
+        # ===== СТАЖЁРЫ =====
+        interns_this_month = internships.filter(
+            start_date__month=current_month,
+            start_date__year=current_year
+        ).count()
+        total_interns = internships.count()
+        intern_stats = []
+        best_intern = None
+        best_percent = 0
+        avg_percent_sum = 0
 
-        interns_this_month = Internship.objects.filter(mentor=user, start_date__month=current_month, start_date__year=current_year)
-        total_interns = Internship.objects.filter(mentor=user)
-
+        for internship in internships:
+            intern = internship.intern
+            total_materials = Material.objects.filter(
+                position=internship.position
+            ).count()
+            completed_materials = MaterialProgress.objects.filter(
+                intern=intern,
+                status='completed'
+            ).count()
+            percent = round((completed_materials / total_materials) * 100, 2) if total_materials else 0
+            avg_percent_sum += percent
+            # Статус стажировки
+            if internship.is_completed():
+                status = 'Завершена'
+            elif internship.internship_duration_expired():
+                status = 'Срок истёк'
+            else:
+                status = 'Активна'
+            intern_stats.append({
+                'intern': intern,
+                'completed': completed_materials,
+                'total': total_materials,
+                'percent': percent,
+                'status': status,
+            })
+            # Лучший стажёр
+            if percent > best_percent:
+                best_percent = percent
+                best_intern = intern
+        avg_completion_percent = round(
+            avg_percent_sum / total_interns, 2
+        ) if total_interns else 0
         context.update({
+            # Месяц
             'interns_this_month': interns_this_month,
+            # Всего
             'total_interns': total_interns,
+            'avg_completion_percent': avg_completion_percent,
+            # Таблица
+            'intern_stats': intern_stats,
+            # ТОП
+            'best_intern': best_intern,
+            'best_intern_percent': best_percent,
         })
 
     elif user.role == 'intern':

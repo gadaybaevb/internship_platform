@@ -6,59 +6,96 @@
     <p>Здесь вы можете управлять своими стажировками, проходить тесты и отслеживать прогресс.</p>
 
     {% if request.user.role == 'admin' %}
-        <h3>Итоги за текущий месяц</h3>
+        <h3>📅 Статистика за месяц</h3>
         <ul>
-            <li>Стажеров: {{ interns_this_month }}</li>
-            <li>Менторов: {{ mentors_this_month }}</li>
+          <li>Новые стажёры: <b>{{ interns_this_month }}</b></li>
+          <li>Новые менторы: <b>{{ mentors_this_month }}</b></li>
         </ul>
-
-        <h3>Итоги за весь период</h3>
+        
+        <h3>📊 Общая статистика</h3>
         <ul>
-            <li>Стажеров: {{ total_interns }}</li>
-            <li>Менторов: {{ total_mentors }}</li>
+          <li>Всего стажёров: <b>{{ total_interns }}</b></li>
+          <li>Всего менторов: <b>{{ total_mentors }}</b></li>
+          <li>Прогресс материалов: <b>{{ total_completion_percent }}%</b></li>
         </ul>
+        
+        <h3>⭐ Стажёр месяца</h3>
+        {% if intern_of_month %}
+          <p>
+            {{ intern_of_month.full_name }} — {{ intern_of_month_percent }}%
+          </p>
+        {% else %}
+          <p>Пока нет данных</p>
+        {% endif %}
 
     {% elif request.user.role == 'mentor' %}
-        <h3>Стажеры за текущий месяц</h3>
-        <table class="table">
-            <thead>
+        <h3>📅 Мой месяц</h3>
+        <ul>
+          <li>Новые стажёры: <b>{{ interns_this_month }}</b></li>
+        </ul>
+        
+        <h3>📊 Общая статистика</h3>
+        <ul>
+          <li>Всего стажёров: <b>{{ total_interns }}</b></li>
+          <li>Средний прогресс: <b>{{ avg_completion_percent }}%</b></li>
+        </ul>
+        <h3>⭐ Лучший стажёр</h3>
+        {% if best_intern %}
+          <p>{{ best_intern.full_name }} — {{ best_intern_percent }}%</p>
+        {% else %}
+          <p>Пока нет данных</p>
+        {% endif %}
+        <table border="1" cellpadding="6">
+          <tr>
+            <th>Стажёр</th>
+            <th>Материалы</th>
+            <th>%</th>
+            <th>Статус</th>
+          </tr>
+        
+          {% for stat in intern_stats %}
+          <tr>
+            <td>{{ stat.intern.full_name }}</td>
+            <td>{{ stat.completed }} / {{ stat.total }}</td>
+            <td>{{ stat.percent }}%</td>
+            <td>{{ stat.status }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        <h3>👥 Мои стажёры</h3>
+
+            {% if intern_stats %}
+            <table class="table table-bordered mt-3">
+              <thead class="table-light">
                 <tr>
-                    <th>ФИО</th>
-                    <th>Позиция</th>
-                    <th>Этапы</th>
+                  <th>Стажёр</th>
+                  <th>Материалы</th>
+                  <th>%</th>
+                  <th>Статус</th>
                 </tr>
-            </thead>
-            <tbody>
-                {% for intern in interns_this_month %}
+              </thead>
+              <tbody>
+                {% for stat in intern_stats %}
                 <tr>
-                    <td>{{ intern.intern.full_name }}</td>
-                    <td>{{ intern.position.name }}</td>
-                    <td>Этапов: {{ intern.stage_progresses.count }}</td>
+                  <td>{{ stat.intern.full_name }}</td>
+                  <td>{{ stat.completed }} / {{ stat.total }}</td>
+                  <td>{{ stat.percent }}%</td>
+                  <td>
+                    {% if stat.status == 'Завершена' %}
+                      <span class="badge bg-success">{{ stat.status }}</span>
+                    {% elif stat.status == 'Активна' %}
+                      <span class="badge bg-primary">{{ stat.status }}</span>
+                    {% else %}
+                      <span class="badge bg-danger">{{ stat.status }}</span>
+                    {% endif %}
+                  </td>
                 </tr>
                 {% endfor %}
-            </tbody>
-        </table>
-
-        <h3>Все стажеры</h3>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>ФИО</th>
-                    <th>Позиция</th>
-                    <th>Этапы</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for intern in total_interns %}
-                <tr>
-                    <td>{{ intern.intern.full_name }}</td>
-                    <td>{{ intern.position.name }}</td>
-                    <td>Этапов: {{ intern.stage_progresses.count }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
+              </tbody>
+            </table>
+            {% else %}
+            <p>У вас пока нет стажёров.</p>
+            {% endif %}
     {% elif request.user.role == 'intern' %}
         <h3>Моя стажировка</h3>
         {% if internship %}
