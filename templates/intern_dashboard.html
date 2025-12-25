@@ -1,27 +1,42 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container mt-4">
-    <h2>Ваш прогресс по стажировке</h2>
+    <h2>Список стажировок</h2>
+
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Название материала</th>
-                <th>Этап</th>
+                <th>#</th>
+                <th>Стажёр</th>
+                <th>Ментор</th>
+                <th>Позиция</th>
+                <th>Департамент</th>
+                <th>Начало стажировки</th>
+                <th>Осталось дней</th>
                 <th>Статус</th>
             </tr>
         </thead>
         <tbody>
-            {% for item in materials %}
+            {% for internship in page_obj %}
             <tr>
-                <td>{{ item.material.title }}</td>
-                <td>Этап {{ item.material.stage }}</td>
+                <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                <td>{{ internship.intern.full_name }}</td>
                 <td>
-                    {% if item.status == 'Завершён' %}
-                        <span class="text-success">Завершён</span>
-                    {% elif item.status == 'Ожидание' %}
-                        <span class="text-warning">Ожидание подтверждения ментора</span>
+                    {% if internship.mentor %}
+                        {{ internship.mentor.full_name }}
                     {% else %}
-                        <span class="text-danger">Не завершён</span>
+                        Не назначен
+                    {% endif %}
+                </td>
+                <td>{{ internship.position.name|default:"Не указана" }}</td>
+                <td>{{ internship.intern.department.name|default:"Не указан" }}</td>
+                <td>{{ internship.start_date }}</td>
+                <td>{{ internship.days_left }}</td>
+                <td>
+                    {% if internship.is_completed %}
+                        <span class="badge bg-success">Завершён</span>
+                    {% else %}
+                        <span class="badge bg-warning">В прогрессе</span>
                     {% endif %}
                 </td>
             </tr>
@@ -29,11 +44,105 @@
         </tbody>
     </table>
 
-    <div class="mt-4">
-        <h4>Итоги:</h4>
-        <p>Пройдено материалов: {{ progress_summary.completed }} из {{ progress_summary.total }}</p>
-        <p>Осталось материалов: {{ progress_summary.remaining }}</p>
-        <p>Время до завершения стажировки: {{ progress_summary.time_left }} дней</p>
-    </div>
+    <!-- Пагинация -->
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">Первая</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <a class="page-link" href="#">{{ page_obj.number }}</a>
+            </li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Последняя</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Список стажировок</h2>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Стажёр</th>
+                <th>Ментор</th>
+                <th>Позиция</th>
+                <th>Департамент</th>
+                <th>Начало стажировки</th>
+                <th>Осталось дней</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for internship in page_obj %}
+            <tr>
+                <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                <td>{{ internship.intern.full_name }}</td>
+                <td>
+                    {% if internship.mentor %}
+                        {{ internship.mentor.full_name }}
+                    {% else %}
+                        Не назначен
+                    {% endif %}
+                </td>
+                <td>{{ internship.position.name|default:"Не указана" }}</td>
+                <td>{{ internship.intern.department.name|default:"Не указан" }}</td>
+                <td>{{ internship.start_date }}</td>
+                <td>{{ internship.days_left }}</td>
+                <td>
+                    {% if internship.is_completed %}
+                        <span class="badge bg-success">Завершён</span>
+                    {% else %}
+                        <span class="badge bg-warning">В прогрессе</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Пагинация -->
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">Первая</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <a class="page-link" href="#">{{ page_obj.number }}</a>
+            </li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Последняя</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
 </div>
 {% endblock %}

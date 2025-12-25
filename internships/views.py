@@ -16,7 +16,7 @@ from users.models import CustomUser
 from django.core.files.storage import default_storage
 from .utils import create_stage_progress
 from datetime import timedelta, datetime
-from django.views.decorators.csrf import csrf_exempt
+from django.utils.timezone import now
 from django.utils import timezone
 from notifications.models import Notification
 from tests.models import Test, TestResult
@@ -28,8 +28,6 @@ from django.contrib.auth.decorators import login_required
 import pandas as pd
 from unidecode import unidecode
 from django.http import HttpResponse
-from openpyxl import Workbook
-from django.contrib.auth.decorators import user_passes_test
 from internships.analytics.material_stats import material_time_stats
 from internships.analytics.internship_stats import internship_duration_stats
 from internships.analytics.test_stats import test_quality_stats
@@ -231,19 +229,36 @@ def delete_internship(request, internship_id):
 
 @login_required
 def internship_list(request):
-    search_query = request.GET.get('search', '')  # Получаем запрос поиска
-    internships = Internship.objects.all()
+    search_query = request.GET.get('search', '')  # Поиск по имени стажера
+    internships = Internship.objects.select_related('intern', 'mentor', 'position').all()
 
-    # Если есть запрос на поиск, фильтруем по имени стажера
     if search_query:
-        internships = internships.filter(Q(intern__username__icontains=search_query))
+        internships = internships.filter(
+            Q(intern__username__icontains=search_query) |
+            Q(intern__full_name__icontains=search_query)
+        )
+
+    # Сортировка: новые стажёры первыми
+    internships = internships.order_by('-start_date')
+
+    # Добавим вычисление "осталось дней"
+    today = now().date()
+    for internship in internships:
+        if internship.position and internship.start_date:
+            end_date = internship.start_date + timedelta(days=internship.position.duration_days)
+            internship.days_left = max((end_date - today).days, 0)
+        else:
+            internship.days_left = '-'
 
     # Пагинация на 50 записей
     paginator = Paginator(internships, 50)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'internship_list.html', {'page_obj': page_obj, 'search_query': search_query})
+    return render(request, 'internship_list.html', {
+        'page_obj': page_obj,
+        'search_query': search_query,
+    })
 
 
 @login_required
@@ -251,7 +266,7 @@ def dashboard(request):
     user = request.user
     check_deadlines(user)  # Проверяем дедлайны
 
-    form = None  # Инициализация переменной `form`
+    form = None  # Инициализация формы
 
     if user.role == 'admin':
         internships = Internship.objects.select_related('intern', 'mentor', 'position').all()
@@ -268,26 +283,37 @@ def dashboard(request):
             internship.intern_feedback_exists = bool(internship.intern_feedback)
             internship.is_internship_completed = internship.is_completed()
 
-        # Обработка формы отзыва только для отзыва ментора
+        # Обработка формы отзыва
         if request.method == 'POST' and 'internship_id' in request.POST:
             internship_id = request.POST.get('internship_id')
             internship = get_object_or_404(Internship, id=internship_id)
-            form = MentorReviewForm(request.POST, instance=internship)  # Используем форму только для отзыва ментора
+            form = MentorReviewForm(request.POST, instance=internship)
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Ваш отзыв был добавлен.')
                 return redirect('dashboard')
 
-        form = MentorReviewForm()  # Пустая форма только для отзыва ментора
+        form = MentorReviewForm()
 
-
-    else:
+    else:  # intern
         stage_progress = StageProgress.objects.filter(intern=user).order_by('stage')
         internship = Internship.objects.filter(intern=user).first()
         if not internship:
-            messages.error(request, "У вас нет активной стажировки. Пожалуйста, свяжитесь с администратором.")
+            messages.error(request, "У вас нет активной стажировки.")
             return render(request, 'intern_dashboard.html', {'stage_progress': stage_progress})
         return render(request, 'intern_dashboard.html', {'stage_progress': stage_progress})
+
+    # Сортировка: новые стажёры первыми
+    internships = internships.order_by('-start_date')
+
+    # Добавим "осталось дней" для всех стажёров
+    today = now().date()
+    for internship in internships:
+        if internship.position and internship.start_date:
+            end_date = internship.start_date + timedelta(days=internship.position.duration_days)
+            internship.days_left = max((end_date - today).days, 0)
+        else:
+            internship.days_left = '-'
 
     paginator = Paginator(internships, 10)
     page_number = request.GET.get('page')
