@@ -70,11 +70,11 @@
                 {% for stat in admin_intern_stats %}
                 <tr>
                     <td>{{ stat.intern.full_name }}</td>
-                    {% if stat.mentor %}
-                        {{ stat.mentor.full_name }}
-                    {% else %}
-                        —
-                    {% endif %}
+{#                    {% if stat.mentor %}#}
+{#                        {{ stat.mentor.full_name }}#}
+{#                    {% else %}#}
+{#                        —#}
+{#                    {% endif %}#}
 
                     <td>{{ stat.position.name }}</td>
                     <td>{{ stat.completed }} / {{ stat.total }}</td>
