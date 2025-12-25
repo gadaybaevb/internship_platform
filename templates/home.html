@@ -4,7 +4,7 @@
 <div class="container mt-5">
     <h1>Добро пожаловать <b>{{ request.user.full_name }},</b> на платформу стажировок от компании ARKON</h1>
     <p>Здесь вы можете управлять своими стажировками, проходить тесты и отслеживать прогресс.</p>
-
+    
     {% if request.user.role == 'admin' %}
         <h3>📅 Статистика за месяц</h3>
         <ul>
@@ -28,6 +28,74 @@
           <p>Пока нет данных</p>
         {% endif %}
 
+        <!-- Форма выбора месяца и года -->
+        <form method="get" class="row g-2 mb-4">
+            <div class="col-md-3">
+                <label class="form-label">Месяц</label>
+                <select name="month" class="form-select">
+                    {% for value, label in months %}
+                        <option value="{{ value }}" {% if selected_month == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Год</label>
+                <select name="year" class="form-select">
+                    {% for y in years %}
+                        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3 align-self-end">
+                <button class="btn btn-primary w-100">Показать</button>
+            </div>
+        </form>
+
+        <!-- Таблица активных стажёров -->
+        <h3>👥 Стажёры выбранного месяца</h3>
+        {% if admin_intern_stats %}
+        <table class="table table-bordered mt-3">
+            <thead class="table-light">
+                <tr>
+                    <th>Стажёр</th>
+                    <th>Ментор</th>
+                    <th>Позиция</th>
+                    <th>Пройдено / Всего</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in admin_intern_stats %}
+                <tr>
+                    <td>{{ stat.intern.full_name }}</td>
+                    {% if stat.mentor %}
+                        {{ stat.mentor.full_name }}
+                    {% else %}
+                        —
+                    {% endif %}
+
+                    <td>{{ stat.position.name }}</td>
+                    <td>{{ stat.completed }} / {{ stat.total }}</td>
+                    <td>{{ stat.percent }}%</td>
+                    <td>
+                        {% if stat.status == 'Завершена' %}
+                            <span class="badge bg-success">{{ stat.status }}</span>
+                        {% elif stat.status == 'Активна' %}
+                            <span class="badge bg-primary">{{ stat.status }}</span>
+                        {% else %}
+                            <span class="badge bg-danger">{{ stat.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p>Нет данных о стажёрах за выбранный месяц.</p>
+        {% endif %}
+
     {% elif request.user.role == 'mentor' %}
         <h3>📅 Мой месяц</h3>
         <ul>
@@ -47,44 +115,45 @@
         {% endif %}
         <h3>👥 Мои стажёры</h3>
 
-            {% if intern_stats %}
-            <table class="table table-bordered mt-3">
-              <thead class="table-light">
-                <tr>
-                  <th>Стажёр</th>
-                  <th>Материалы</th>
-                  <th>%</th>
-                  <th>Статус</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for stat in intern_stats %}
-                <tr>
-                  <td>{{ stat.intern.full_name }}</td>
-                  <td>{{ stat.completed }} / {{ stat.total }}</td>
-                  <td>{{ stat.percent }}%</td>
-                  <td>
-                    {% if stat.status == 'Завершена' %}
-                      <span class="badge bg-success">{{ stat.status }}</span>
-                    {% elif stat.status == 'Активна' %}
-                      <span class="badge bg-primary">{{ stat.status }}</span>
-                    {% else %}
-                      <span class="badge bg-danger">{{ stat.status }}</span>
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-            {% else %}
-            <p>У вас пока нет стажёров.</p>
-            {% endif %}
+        {% if intern_stats %}
+        <table class="table table-bordered mt-3">
+          <thead class="table-light">
+            <tr>
+              <th>Стажёр</th>
+              <th>Материалы</th>
+              <th>%</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for stat in intern_stats %}
+            <tr>
+              <td>{{ stat.intern.full_name }}</td>
+              <td>{{ stat.completed }} / {{ stat.total }}</td>
+              <td>{{ stat.percent }}%</td>
+              <td>
+                {% if stat.status == 'Завершена' %}
+                  <span class="badge bg-success">{{ stat.status }}</span>
+                {% elif stat.status == 'Активна' %}
+                  <span class="badge bg-primary">{{ stat.status }}</span>
+                {% else %}
+                  <span class="badge bg-danger">{{ stat.status }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p>У вас пока нет стажёров.</p>
+        {% endif %}
+
     {% elif request.user.role == 'intern' %}
         <h3>Моя стажировка</h3>
         {% if internship %}
             <ul>
                 <li>Пройдено материалов: {{ completed_materials }} из {{ total_materials }}</li>
-                <li>Осталось материалов: {{ remaining_materials }}</li>
+                <li>Осталось материалов: {{ total_materials|add:"-"|add:completed_materials }}</li>
                 <li>Оставшиеся дни: {{ days_left }}</li>
             </ul>
         {% else %}
