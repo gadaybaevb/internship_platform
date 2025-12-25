@@ -303,10 +303,11 @@ def dashboard(request):
             return render(request, 'intern_dashboard.html', {'stage_progress': stage_progress})
         return render(request, 'intern_dashboard.html', {'stage_progress': stage_progress})
 
-    # Сортировка: новые стажёры первыми
+    # ================= SORTING =================
+    # Сортировка: новые стажёры первыми по дате начала
     internships = internships.order_by('-start_date')
 
-    # Добавим "осталось дней" для всех стажёров
+    # Добавляем расчет "осталось дней" для каждой стажировки
     today = now().date()
     for internship in internships:
         if internship.position and internship.start_date:
