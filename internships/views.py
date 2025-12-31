@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from openpyxl.cell import MergedCell
 from datetime import date
-from .models import Material, Position, Internship, StageProgress, MaterialProgress
+from .models import Material, Position, Internship, StageProgress, MaterialProgress, MaterialAutoAnalysis
 from departments.models import Department
 from django.contrib.auth import get_user_model
 from .forms import MaterialForm, ReviewForm, AddInternForm, MentorReviewForm
@@ -32,6 +32,9 @@ from internships.analytics.material_stats import material_time_stats
 from internships.analytics.internship_stats import internship_duration_stats
 from internships.analytics.test_stats import test_quality_stats
 from internships.analytics.department_stats import department_analytics
+from services.material_auto_analyzer import analyze_material_answer
+
+
 
 User = get_user_model()
 
@@ -514,6 +517,25 @@ def mark_material_completed(request, material_id):
             material_progress.completed = False  # Ожидаем подтверждения от ментора
             material_progress.completion_date = timezone.now()  # Устанавливаем дату завершения
             material_progress.save()
+
+            analysis = analyze_material_answer(
+                material_text=material.description,
+                intern_answer=feedback
+            )
+
+            MaterialAutoAnalysis.objects.update_or_create(
+                progress=material_progress,
+                defaults={
+                    'intern': intern,
+                    'material': material,
+                    'score': analysis['score'],
+                    'coverage': analysis['coverage'],
+                    'key_points': analysis['key_points'],
+                    'matched_points': analysis['matched'],
+                    'missed_points': analysis['missed'],
+                    'summary': analysis['summary'],
+                }
+            )
 
             # Отправляем уведомление ментору
             internship = Internship.objects.filter(intern=intern).first()
@@ -1067,6 +1089,63 @@ def weekly_report(request):
             analytics[f"B{row}"] = f"{dep['avg_accuracy']}%"
             row += 1
 
+            # =========================================================
+            # SHEETS: INTERN MATERIAL ANALYSIS (COMPLETED ONLY)
+            # =========================================================
+
+        for row in report_data:
+            intern = row['_intern']
+
+            sheet_name = intern.full_name[:31]  # ограничение Excel
+            ws = writer.book.create_sheet(sheet_name)
+            excel_row = 1
+
+            ws[f"A{excel_row}"] = f"Стажёр: {intern.full_name}"
+            ws[f"A{excel_row}"].font = Font(size=14, bold=True)
+            excel_row += 2
+
+            headers = [
+                "Материал",
+                "Текст материала",
+                "Ответ стажёра",
+                "Оценка (ИИ)",
+                "Покрытие",
+                "Вывод ИИ"
+            ]
+            ws.append(headers)
+
+            for cell in ws[excel_row]:
+                cell.font = Font(bold=True)
+            excel_row += 1
+
+            progresses = (
+                MaterialProgress.objects
+                .select_related('material', 'auto_analysis')
+                .filter(intern=intern, completed=True)
+                .order_by('completion_date')
+            )
+
+            if not progresses.exists():
+                ws[f"A{excel_row}"] = "Нет пройденных материалов"
+                continue
+
+            for progress in progresses:
+                analysis = getattr(progress, 'auto_analysis', None)
+
+                ws.append([
+                    progress.material.title,
+                    progress.material.description,
+                    progress.feedback or "—",
+                    analysis.score if analysis else "—",
+                    f"{analysis.coverage:.0%}" if analysis else "—",
+                    analysis.summary if analysis else "Нет аналитики"
+                ])
+
+            # автоширина колонок
+            for col in ws.columns:
+                max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+                ws.column_dimensions[col[0].column_letter].width = min(max_length + 2, 60)
+
     return response
 
 
@@ -1226,3 +1305,4 @@ def generate_pdf(request, intern_id):
 
     # Не забудь вернуть ответ
     return response
+

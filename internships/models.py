@@ -99,3 +99,31 @@ class MaterialProgress(models.Model):
     completion_date = models.DateTimeField(null=True, blank=True, verbose_name='Дата окончания')
     confirmation_date = models.DateTimeField(null=True, blank=True, verbose_name='Дата подтверждения')
 
+
+class MaterialAutoAnalysis(models.Model):
+    intern = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    material = models.ForeignKey(Material, on_delete=models.CASCADE)
+    progress = models.OneToOneField(
+        MaterialProgress,
+        on_delete=models.CASCADE,
+        related_name='auto_analysis'
+    )
+
+    # Результаты анализа
+    score = models.PositiveIntegerField(verbose_name='Оценка понимания (0–100)')
+    coverage = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        verbose_name='Покрытие важных аспектов'
+    )
+
+    key_points = models.JSONField(verbose_name='Выделенные важные аспекты')
+    matched_points = models.JSONField(verbose_name='Совпавшие аспекты')
+    missed_points = models.JSONField(verbose_name='Пропущенные аспекты')
+
+    summary = models.TextField(verbose_name='Вывод ИИ')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Автоанализ материала'

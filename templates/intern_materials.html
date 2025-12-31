@@ -107,6 +107,20 @@
             </form>
         </div>
     </div>
+    <!-- Модальное окно описания материала -->
+    <div class="modal fade" id="materialModal" tabindex="-1" aria-labelledby="materialModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="materialModalLabel"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="materialModalDescription"></p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Скрипт для передачи данных в модальное окно -->
     <script>
@@ -125,6 +139,21 @@
                 feedbackForm.action = `{% url 'mark_material_completed' 0 %}`.replace(0, materialId);
             });
         });
+    </script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const materialModal = document.getElementById('materialModal');
+    
+        materialModal.addEventListener('show.bs.modal', function (event) {
+            const link = event.relatedTarget;
+    
+            const title = link.getAttribute('data-title');
+            const description = link.getAttribute('data-description');
+    
+            materialModal.querySelector('#materialModalLabel').textContent = title;
+            materialModal.querySelector('#materialModalDescription').textContent = description;
+        });
+    });
     </script>
 </div>
 {% endblock %}
