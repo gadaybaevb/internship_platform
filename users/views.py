@@ -103,9 +103,11 @@ def home(request):
         completed_materials = 0
 
         for internship in internships:
-            total_materials += Material.objects.filter(
-                position=internship.position
-            ).count()
+            total_materials += MaterialProgress.objects.filter(
+            intern=internship.intern,
+            mentor_confirmed=True,
+            confirmation_date__date__range=(month_start, month_end)
+        ).count()
 
             completed_materials += MaterialProgress.objects.filter(
                 intern=internship.intern,
@@ -185,14 +187,17 @@ def home(request):
         for internship in internships:
             intern = internship.intern
 
-            total_m = Material.objects.filter(
-                position=internship.position
+            total_m = MaterialProgress.objects.filter(
+                intern=intern,
+                material__position=internship.position,
+                confirmation_date__date__range=(month_start, month_end)
             ).count()
 
             completed_m = MaterialProgress.objects.filter(
                 intern=intern,
                 material__position=internship.position,
-                status='completed'
+                mentor_confirmed=True,
+                confirmation_date__date__range=(month_start, month_end)
             ).count()
 
             percent = round((completed_m / total_m) * 100, 2) if total_m else 0
