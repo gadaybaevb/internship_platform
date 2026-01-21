@@ -67,7 +67,7 @@ def home(request):
 
     # ===================== ADMIN =====================
     if user.role == 'admin':
-        # 1. Берем все стажировки, которые начались до конца выбранного месяца
+        # 1. Получаем стажировки, начавшиеся до конца выбранного месяца
         all_internships = Internship.objects.select_related(
             'intern', 'mentor', 'position'
         ).filter(start_date__lte=month_end)
@@ -75,57 +75,57 @@ def home(request):
         admin_intern_stats = []
 
         for internship in all_internships:
-            # Рассчитываем дату окончания стажировки по плану
-            end_date = internship.start_date + timedelta(
+            # Рассчитываем плановую дату окончания
+            end_date_plan = internship.start_date + timedelta(
                 days=internship.position.duration_days
             )
 
-            # ЧТОБЫ ШОИРА НЕ ПРОПАДАЛА В ЯНВАРЕ:
-            # Убираем жесткое условие "end_date >= month_start", если хотим видеть её всегда.
-            # Оставляем только проверку на начало.
+            # Проверка: показывать стажера, если он начал стажировку до конца этого месяца
+            # Мы убрали 'end_date >= month_start', чтобы стажеры не пропадали в следующих месяцах
             if internship.start_date <= month_end:
 
-                # --- ЛОГИКА ПОДСЧЕТА МАТЕРИАЛОВ С ФИЛЬТРОМ ПО ДАТЕ ---
+                # Считаем общее кол-во материалов для этой позиции
                 total_m = Material.objects.filter(
                     position=internship.position
                 ).count()
 
-                # Считаем только то, что было подтверждено до КОНЦА выбранного месяца
-                completed_m_query = MaterialProgress.objects.filter(
+                # Считаем подтвержденные материалы ТОЛЬКО до конца выбранного месяца
+                completed_m_qs = MaterialProgress.objects.filter(
                     intern=internship.intern,
                     material__position=internship.position,
                     status='completed',
-                    confirmation_date__date__lte=month_end
+                    confirmation_date__date__lte=month_end  # Фильтр по дате подтверждения
                 )
-                completed_m = completed_m_query.count()
+                completed_m = completed_m_qs.count()
 
-                # --- БЛОК ДИАГНОСТИКИ (ПРИНТЫ) ---
+                # --- ПРИНТЫ ДЛЯ ОТЛАДКИ (Смотрите в консоль сервера) ---
                 if "Шоира" in internship.intern.full_name:
-                    print(f"\n--- ОТЧЕТ ДЛЯ {internship.intern.full_name} ---")
-                    print(f"Период фильтра (месяц): {month_start} - {month_end}")
-                    print(f"Срок стажировки по плану: {internship.start_date} - {end_date}")
-                    print(f"Подтверждено материалов до {month_end}: {completed_m}")
-                # --- КОНЕЦ ПРИНТОВ ---
+                    print(f"\n>>> DEBUG: {internship.intern.full_name}")
+                    print(f"Выбранный месяц: {selected_month}/{selected_year} (конец: {month_end})")
+                    print(f"Подтверждено материалов на эту дату: {completed_m} из {total_m}")
+                    # Посмотреть даты подтверждения первых материалов
+                    for cp in completed_m_qs[:3]:
+                        print(f" - Мат ID {cp.material_id} подтвержден: {cp.confirmation_date}")
 
                 percent = round((completed_m / total_m) * 100, 2) if total_m else 0
 
-                # --- ИСПРАВЛЕННЫЙ СТАТУС (БЕЗ ОШИБКИ completion_date) ---
-                # Проверяем, завершены ли ВСЕ материалы на текущий момент
-                is_full_done = internship.is_completed()
+                # --- ОПРЕДЕЛЕНИЕ СТАТУСА НА КОНКРЕТНЫЙ МЕСЯЦ ---
+                # 1. Проверяем, завершил ли он всё ВООБЩЕ
+                is_fully_done = internship.is_completed()
 
-                # Ищем дату последнего подтвержденного материала
-                last_progress = MaterialProgress.objects.filter(
+                # 2. Находим дату завершения последнего материала
+                last_m = MaterialProgress.objects.filter(
                     intern=internship.intern,
                     material__position=internship.position,
                     status='completed'
                 ).order_by('-confirmation_date').first()
 
-                last_conf_date = last_progress.confirmation_date.date() if last_progress and last_progress.confirmation_date else None
+                actual_completion_date = last_m.confirmation_date.date() if last_m and last_m.confirmation_date else None
 
-                # Логика определения статуса
-                if is_full_done and last_conf_date and last_conf_date <= month_end:
+                # Логика статуса:
+                if is_fully_done and actual_completion_date and actual_completion_date <= month_end:
                     status = 'Завершена'
-                elif today > end_date:
+                elif month_end > end_date_plan:
                     status = 'Срок истёк'
                 else:
                     status = 'Активна'
