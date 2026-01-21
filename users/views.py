@@ -20,13 +20,16 @@ from django.db.models import F, ExpressionWrapper, DateField
 from calendar import monthrange
 
 
-
-
 @login_required
 def home(request):
     user = request.user
+
+    if not user.is_authenticated:
+        return redirect('login')
+
     today = now().date()
 
+    # ===== МЕСЯЦ / ГОД (по умолчанию текущие) =====
     selected_month = int(request.GET.get('month', today.month))
     selected_year = int(request.GET.get('year', today.year))
 
@@ -38,9 +41,18 @@ def home(request):
     )
 
     months = [
-        (1, 'Январь'), (2, 'Февраль'), (3, 'Март'), (4, 'Апрель'),
-        (5, 'Май'), (6, 'Июнь'), (7, 'Июль'), (8, 'Август'),
-        (9, 'Сентябрь'), (10, 'Октябрь'), (11, 'Ноябрь'), (12, 'Декабрь'),
+        (1, 'Январь'),
+        (2, 'Февраль'),
+        (3, 'Март'),
+        (4, 'Апрель'),
+        (5, 'Май'),
+        (6, 'Июнь'),
+        (7, 'Июль'),
+        (8, 'Август'),
+        (9, 'Сентябрь'),
+        (10, 'Октябрь'),
+        (11, 'Ноябрь'),
+        (12, 'Декабрь'),
     ]
 
     years = list(range(2023, today.year + 2))
@@ -55,6 +67,7 @@ def home(request):
     # ===================== ADMIN =====================
     if user.role == 'admin':
 
+        # --- ВСЕ стажировки ---
         all_internships = Internship.objects.select_related(
             'intern', 'mentor', 'position'
         )
@@ -85,7 +98,7 @@ def home(request):
             mentor=None
         ).values('mentor').distinct().count()
 
-        # ===== ПРОГРЕСС ЗА ПЕРИОД =====
+        # ===== ПРОГРЕСС =====
         total_materials = 0
         completed_materials = 0
 
@@ -97,8 +110,7 @@ def home(request):
             completed_materials += MaterialProgress.objects.filter(
                 intern=internship.intern,
                 material__position=internship.position,
-                mentor_confirmed=True,
-                confirmation_date__date__range=(month_start, month_end)
+                status='completed'
             ).count()
 
         total_completion_percent = round(
@@ -118,8 +130,7 @@ def home(request):
             completed_m = MaterialProgress.objects.filter(
                 intern=intern,
                 material__position=internship.position,
-                mentor_confirmed=True,
-                confirmation_date__date__range=(month_start, month_end)
+                status='completed'
             ).count()
 
             percent = round((completed_m / total_m) * 100, 2) if total_m else 0
@@ -150,9 +161,98 @@ def home(request):
             'admin_intern_stats': admin_intern_stats,
         })
 
+
+    # ===================== MENTOR =====================
+    elif user.role == 'mentor':
+        internships = (
+            Internship.objects
+            .filter(mentor=user)
+            .select_related('intern', 'position')
+        )
+
+        interns_this_month = internships.filter(
+            start_date__month=today.month,
+            start_date__year=today.year
+        ).count()
+
+        total_interns = internships.count()
+
+        intern_stats = []
+        best_intern = None
+        best_percent = 0
+        avg_sum = 0
+
+        for internship in internships:
+            intern = internship.intern
+
+            total_m = Material.objects.filter(
+                position=internship.position
+            ).count()
+
+            completed_m = MaterialProgress.objects.filter(
+                intern=intern,
+                material__position=internship.position,
+                status='completed'
+            ).count()
+
+            percent = round((completed_m / total_m) * 100, 2) if total_m else 0
+            avg_sum += percent
+
+            if internship.is_completed():
+                status = 'Завершена'
+            elif internship.internship_duration_expired():
+                status = 'Срок истёк'
+            else:
+                status = 'Активна'
+
+            intern_stats.append({
+                'intern': intern,
+                'completed': completed_m,
+                'total': total_m,
+                'percent': percent,
+                'status': status,
+            })
+
+            if percent > best_percent:
+                best_percent = percent
+                best_intern = intern
+
+        context.update({
+            'interns_this_month': interns_this_month,
+            'total_interns': total_interns,
+            'avg_completion_percent': round(avg_sum / total_interns, 2) if total_interns else 0,
+            'intern_stats': intern_stats,
+            'best_intern': best_intern,
+            'best_intern_percent': best_percent,
+        })
+
+    # ===================== INTERN =====================
+    elif user.role == 'intern':
+        internship = Internship.objects.filter(intern=user).select_related('position').first()
+
+        if internship:
+            materials = MaterialProgress.objects.filter(
+                intern=user,
+                material__position=internship.position
+            )
+
+            completed = materials.filter(status='completed').count()
+            total = materials.count()
+
+            end_date = internship.start_date + timedelta(
+                days=internship.position.duration_days
+            )
+
+            days_left = (end_date - today).days
+
+            context.update({
+                'completed_materials': completed,
+                'total_materials': total,
+                'days_left': days_left,
+                'internship': internship,
+            })
+
     return render(request, 'home.html', context)
-
-
 
 
 @staff_member_required
