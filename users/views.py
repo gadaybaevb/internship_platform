@@ -20,6 +20,16 @@ from django.db.models import F, ExpressionWrapper, DateField
 from calendar import monthrange
 
 
+def is_fully_completed(self):
+    total = Material.objects.filter(position=self.position).count()
+    completed = MaterialProgress.objects.filter(
+        intern=self.intern,
+        material__position=self.position,
+        mentor_confirmed=True
+    ).count()
+    return total > 0 and total == completed
+
+
 @login_required
 def home(request):
     user = request.user
@@ -75,11 +85,14 @@ def home(request):
         internships = []
 
         for internship in all_internships:
-            end_date = internship.start_date + timedelta(
-                days=internship.position.duration_days
-            )
 
-            if internship.start_date <= month_end and end_date >= month_start:
+            # если стажировка началась ДО или В этом месяце
+            started = internship.start_date <= month_end
+
+            # если стажировка НЕ завершена по факту
+            not_finished = not internship.is_fully_completed()
+
+            if started and not_finished:
                 internships.append(internship)
 
         # ===== СТАТИСТИКА =====
