@@ -863,24 +863,25 @@ def weekly_report(request):
         return render(request, 'weekly_report_form.html')
 
     # ------------------------------------------------------------------
-    # ДАТЫ
+    # ДАТЫ (Период отчета)
     # ------------------------------------------------------------------
-    start_date = request.POST.get('start_date')
-    end_date = request.POST.get('end_date')
+    start_date_str = request.POST.get('start_date')
+    end_date_str = request.POST.get('end_date')
 
-    if not start_date or not end_date:
+    if not start_date_str or not end_date_str:
         messages.error(request, "Выберите период дат")
         return redirect('weekly_report')
 
-    start_date = timezone.datetime.fromisoformat(start_date).date()
-    end_date = timezone.datetime.fromisoformat(end_date).date()
+    start_date = timezone.datetime.fromisoformat(start_date_str).date()
+    end_date = timezone.datetime.fromisoformat(end_date_str).date()
 
     # ------------------------------------------------------------------
     # СТАЖИРОВКИ
     # ------------------------------------------------------------------
+    # Фильтруем: стажировка должна начаться до конца периода отчета
     internships = Internship.objects.select_related(
         'intern', 'mentor', 'position__department'
-    )
+    ).filter(start_date__lte=end_date)
 
     report_data = []
     index = 1
@@ -893,76 +894,90 @@ def weekly_report(request):
             continue
 
         # ==============================================================
-        # STAGE PROGRESS
+        # ЛОГИКА ФИЛЬТРАЦИИ (is_finished / date_finished)
         # ==============================================================
-        stages_qs = StageProgress.objects.filter(
+        # Скрываем стажера, если он официально ЗАКОНЧИЛ стажировку
+        # ДО начала выбранного нами недельного периода.
+        if internship.is_finished and internship.date_finished and internship.date_finished < start_date:
+            continue
+
+        # ==============================================================
+        # ОПРЕДЕЛЕНИЕ АКТИВНОСТИ (был ли стажер активен в эти даты?)
+        # ==============================================================
+        # 1. Проверяем материалы, подтвержденные в этот период
+        material_activity = MaterialProgress.objects.filter(
             intern=intern,
-            position=position
-        )
+            material__position=position,
+            status='completed',
+            confirmation_date__date__range=(start_date, end_date)
+        ).exists()
 
-        unfinished_stage_exists = stages_qs.filter(completed=False).exists()
+        # 2. Проверяем тесты, сданные в этот период
+        test_activity = TestResult.objects.filter(
+            user=intern,
+            completed_at__date__range=(start_date, end_date)
+        ).exists()
 
-        completed_stage_in_period = stages_qs.filter(
+        # 3. Проверяем этапы, закрытые в этот период
+        stage_activity = StageProgress.objects.filter(
+            intern=intern,
+            position=position,
             completed=True,
             completion_date__date__range=(start_date, end_date)
         ).exists()
 
-        stage_relevant = unfinished_stage_exists or completed_stage_in_period
+        # Если никакой активности в эти даты не было И стажер уже не "новый" (начал раньше),
+        # то можно его пропустить (опционально, зависит от ваших требований к отчету).
+        # Но по вашей логике мы показываем всех "не завершенных" до этого момента.
 
         # ==============================================================
-        # TEST RESULTS
-        # ==============================================================
-        tests_qs = TestResult.objects.filter(user=intern)
-
-        test_in_period = tests_qs.filter(
-            completed_at__date__range=(start_date, end_date)
-        ).exists()
-
-        no_tests_at_all = not tests_qs.exists()
-
-        # ==============================================================
-        # РЕШЕНИЕ: ПОКАЗЫВАТЬ ИЛИ НЕТ
-        # ==============================================================
-        if not (stage_relevant or test_in_period or no_tests_at_all):
-            continue
-
-        # ==============================================================
-        # МАТЕРИАЛЫ
+        # МАТЕРИАЛЫ (Прогресс на момент конца периода)
         # ==============================================================
         total_materials = Material.objects.filter(position=position).count()
         completed_materials = MaterialProgress.objects.filter(
             intern=intern,
             material__position=position,
-            completed=True
+            status='completed',
+            confirmation_date__date__lte=end_date # Только те, что успели к концу недели
         ).count()
 
         # ==============================================================
         # ТЕСТЫ
         # ==============================================================
+        tests_qs = TestResult.objects.filter(user=intern)
         test_results = tests_qs.order_by('-completed_at')
         mid_test = test_results.filter(test__stage_number=1).first()
         final_test = test_results.filter(test__stage_number=2).first()
 
         # ==============================================================
-        # ДАТЫ СТАЖИРОВКИ
+        # СТАТУС ДЛЯ ОТЧЕТА
+        # ==============================================================
+        # Если он завершил всё внутри этой недели
+        if internship.is_finished and internship.date_finished and start_date <= internship.date_finished <= end_date:
+            status = "completed in this period"
+        else:
+            status = "on probation"
+
+        # ==============================================================
+        # ДАТЫ
         # ==============================================================
         duration_days = position.duration_days if hasattr(position, 'duration_days') else 90
-        internship_end = internship.start_date + timedelta(days=duration_days)
+        internship_end_plan = internship.start_date + timedelta(days=duration_days)
 
         # ==============================================================
         # DATA ROW
         # ==============================================================
         report_data.append({
-            '_intern': intern,  # служебное поле для аналитики
+            '_intern': intern,  # для аналитики
 
             '№': index,
             'Employee': intern.full_name,
             'Department': position.department.name if position.department else "No Department",
             'Position': position.name,
             'Start Date': internship.start_date.strftime('%d.%m.%Y'),
-            'Probation End': internship_end.strftime('%d.%m.%Y'),
+            'Probation End': internship_end_plan.strftime('%d.%m.%Y'),
             'Supervisor': internship.mentor.full_name if internship.mentor else "No Supervisor",
-            'Status': "on probation",
+            'Status': status,
             'Materials Passed': f"{completed_materials}/{total_materials}",
             'Mid Test': mid_test.score if mid_test else "Not taken",
             'Final Test': final_test.score if final_test else "Not taken",
