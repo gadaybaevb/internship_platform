@@ -33,7 +33,17 @@ class Internship(models.Model):
     # Добавляем отзывы
     intern_feedback = models.TextField(null=True, blank=True, verbose_name='Отзыв от стажера')  # Отзыв от стажера
     mentor_feedback = models.TextField(null=True, blank=True, verbose_name='Отзыв от ментора')  # Отзыв от ментора
+    is_finished = models.BooleanField(default=False, verbose_name="Стажировка завершена")
+    date_finished = models.DateField(null=True, blank=True, verbose_name="Дата фактического завершения")
 
+    def check_and_finish(self):
+        """Проверяет условия и ставит галку, если всё ок"""
+        if not self.is_finished:
+            if self.all_stages_completed() and self.all_tests_completed() and self.all_materials_completed():
+                self.is_finished = True
+                self.date_finished = timezone.now().date()
+                self.save()
+        return self.is_finished
     def __str__(self):
         return f"{self.intern.username}'s Internship with {self.mentor.username if self.mentor else 'No Mentor'}"
 
