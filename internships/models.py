@@ -26,8 +26,8 @@ class Material(models.Model):
 
 
 class Internship(models.Model):
-    intern = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='intern_internships', verbose_name='Ментор')
-    mentor = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='mentor_internships', verbose_name='Стажер')
+    intern = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='intern_internships', verbose_name='Стажер')
+    mentor = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='mentor_internships', verbose_name='Ментор')
     position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True, verbose_name='Должность')  # Позиция для стажера
     start_date = models.DateField(default=timezone.now, verbose_name='Дата начала')
     # Добавляем отзывы

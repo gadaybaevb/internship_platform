@@ -18,6 +18,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.db.models import F, ExpressionWrapper, DateField
 from calendar import monthrange
+from django.db.models import Count, Q
 
 
 @login_required
@@ -66,100 +67,57 @@ def home(request):
 
     # ===================== ADMIN =====================
     if user.role == 'admin':
+        # 1. Фильтруем стажировки, которые пересекаются с выбранным месяцем
+        # Стажировка активна, если она началась до конца месяца И (не имеет даты окончания или закончилась после начала месяца)
+        internships_queryset = Internship.objects.filter(
+            start_date__lte=month_end
+        ).select_related('intern', 'mentor', 'position')
 
-        # --- ВСЕ стажировки ---
-        all_internships = Internship.objects.select_related(
-            'intern', 'mentor', 'position'
+        # 2. Используем annotate для подсчета материалов прямо в БД
+        # Это заменит цикл и десятки запросов на 1 эффективный запрос
+        admin_intern_stats_query = internships_queryset.annotate(
+            completed_count=Count(
+                'intern__materialprogress',
+                filter=Q(
+                    'intern__materialprogress__material__position' == F('position'),  # материалы именно этой позиции
+                    intern__materialprogress__status='completed',
+                    intern__materialprogress__confirmation_date__date__lte=month_end
+                )
+            ),
+            total_count=Count(
+                'position__material'  # Общее кол-во материалов для этой позиции
+            )
         )
 
-        internships = []
-
-        for internship in all_internships:
-            end_date = internship.start_date + timedelta(
-                days=internship.position.duration_days
-            )
-
-            if internship.start_date <= month_end and end_date >= month_start:
-                internships.append(internship)
-
-        # ===== СТАТИСТИКА =====
-        interns_this_month = Internship.objects.filter(
-            start_date__month=selected_month,
-            start_date__year=selected_year
-        ).count()
-
-        mentors_this_month = Internship.objects.filter(
-            start_date__month=selected_month,
-            start_date__year=selected_year
-        ).exclude(mentor=None).values('mentor').distinct().count()
-
-        total_interns = Internship.objects.count()
-        total_mentors = Internship.objects.exclude(
-            mentor=None
-        ).values('mentor').distinct().count()
-
-        # ===== ПРОГРЕСС =====
-        total_materials = 0
-        completed_materials = 0
-
-        for internship in internships:
-            total_materials += Material.objects.filter(
-                position=internship.position
-            ).count()
-
-            completed_materials += MaterialProgress.objects.filter(
-                intern=internship.intern,
-                material__position=internship.position,
-                status='completed'
-            ).count()
-
-        total_completion_percent = round(
-            (completed_materials / total_materials) * 100, 2
-        ) if total_materials else 0
-
-        # ===== ТАБЛИЦА =====
         admin_intern_stats = []
 
-        for internship in internships:
-            intern = internship.intern
+        for item in admin_intern_stats_query:
+            # Рассчитываем окончание стажировки
+            end_date_calc = item.start_date + timedelta(days=item.position.duration_days)
 
-            total_m = Material.objects.filter(
-                position=internship.position
-            ).count()
+            # Пропускаем те, что закончились до начала выбранного месяца
+            if end_date_calc < month_start:
+                continue
 
-            completed_m = MaterialProgress.objects.filter(
-                intern=intern,
-                material__position=internship.position,
-                status='completed'
-            ).count()
+            percent = round((item.completed_count / item.total_count) * 100, 2) if item.total_count else 0
 
-            percent = round((completed_m / total_m) * 100, 2) if total_m else 0
-
-            if internship.is_completed():
+            # Определяем статус
+            if item.is_completed() and item.confirmation_date and item.confirmation_date.date() <= month_end:
                 status = 'Завершена'
-            elif internship.internship_duration_expired():
+            elif month_end > end_date_calc:
                 status = 'Срок истёк'
             else:
                 status = 'Активна'
 
             admin_intern_stats.append({
-                'intern': intern,
-                'mentor': internship.mentor,
-                'position': internship.position,
-                'completed': completed_m,
-                'total': total_m,
+                'intern': item.intern,
+                'mentor': item.mentor,
+                'position': item.position,
+                'completed': item.completed_count,
+                'total': item.total_count,
                 'percent': percent,
                 'status': status,
             })
-
-        context.update({
-            'interns_this_month': interns_this_month,
-            'mentors_this_month': mentors_this_month,
-            'total_interns': total_interns,
-            'total_mentors': total_mentors,
-            'total_completion_percent': total_completion_percent,
-            'admin_intern_stats': admin_intern_stats,
-        })
 
 
     # ===================== MENTOR =====================
