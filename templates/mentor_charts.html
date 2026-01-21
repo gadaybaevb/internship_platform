@@ -4,28 +4,42 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Аналитика ментора: {{ mentor.full_name }}</h2>
-        <a href="{% url 'mentor_report' %}" class="btn btn-outline-primary">← К списку менторов</a>
+        <a href="{% url 'mentor_report' %}" class="btn btn-secondary">Назад к списку</a>
     </div>
 
     <div class="row g-4">
-        <div class="col-md-12">
+        <div class="col-12">
             <div class="card shadow-sm p-3">
                 <h5 class="card-title text-muted">Среднее время утверждения материалов (в часах)</h5>
-                <canvas id="timeLineChart" style="max-height: 300px;"></canvas>
+                <canvas id="confTimeChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card shadow-sm p-3">
+                <h5 class="card-title text-muted">Среднее время прохождения стажировки (в днях)</h5>
+                <canvas id="durationChart" style="max-height: 300px;"></canvas>
             </div>
         </div>
 
         <div class="col-md-6">
             <div class="card shadow-sm p-3">
-                <h5 class="card-title text-muted">Количество выпускников по месяцам</h5>
-                <canvas id="graduatesChart"></canvas>
+                <h5 class="card-title text-muted">Количество завершенных стажировок</h5>
+                <canvas id="finishedChart"></canvas>
             </div>
         </div>
 
         <div class="col-md-6">
             <div class="card shadow-sm p-3">
-                <h5 class="card-title text-muted">Средний балл текущих и прошлых стажеров</h5>
-                <canvas id="scoresBarChart"></canvas>
+                <h5 class="card-title text-muted">Соотношение активных и завершенных</h5>
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card shadow-sm p-3">
+                <h5 class="card-title text-muted">Средний балл тестов по стажерам</h5>
+                <canvas id="scoresChart" style="max-height: 400px;"></canvas>
             </div>
         </div>
     </div>
@@ -33,50 +47,68 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const commonOptions = {
-        responsive: true,
-        plugins: { legend: { position: 'bottom' } },
-        scales: { y: { beginAtZero: true } }
-    };
-
-    // 1. График времени подтверждения (Line Chart)
-    new Chart(document.getElementById('timeLineChart'), {
+    // 1. Время подтверждения (Линия)
+    new Chart(document.getElementById('confTimeChart'), {
         type: 'line',
         data: {
             labels: {{ conf_labels|safe }},
             datasets: [{
-                label: 'Часы',
+                label: 'Среднее время (часы)',
                 data: {{ conf_values|safe }},
                 borderColor: '#4e73df',
                 backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                fill: true,
-                tension: 0.3
+                fill: true, tension: 0.3
             }]
-        },
-        options: commonOptions
+        }
     });
 
-    // 2. График выпускников (Bar Chart)
-    new Chart(document.getElementById('graduatesChart'), {
+    // 2. Время стажировки (Линия)
+    new Chart(document.getElementById('durationChart'), {
+        type: 'line',
+        data: {
+            labels: {{ dur_labels|safe }},
+            datasets: [{
+                label: 'Средняя длительность (дни)',
+                data: {{ dur_values|safe }},
+                borderColor: '#e74a3b',
+                backgroundColor: 'rgba(231, 74, 59, 0.1)',
+                fill: true, tension: 0.3
+            }]
+        }
+    });
+
+    // 3. Выпускники (Столбцы)
+    new Chart(document.getElementById('finishedChart'), {
         type: 'bar',
         data: {
             labels: {{ fin_labels|safe }},
             datasets: [{
-                label: 'Человек',
+                label: 'Кол-во человек',
                 data: {{ fin_values|safe }},
                 backgroundColor: '#1cc88a'
             }]
-        },
-        options: commonOptions
+        }
     });
 
-    // 3. График баллов (Horizontal Bar)
-    new Chart(document.getElementById('scoresBarChart'), {
+    // 4. Статус (Пирог)
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Завершено', 'В процессе'],
+            datasets: [{
+                data: [{{ completed }}, {{ active }}],
+                backgroundColor: ['#1cc88a', '#f6c23e']
+            }]
+        }
+    });
+
+    // 5. Баллы (Горизонтальные столбцы)
+    new Chart(document.getElementById('scoresChart'), {
         type: 'bar',
         data: {
             labels: [{% for item in stats_by_intern %}"{{ item.name }}",{% endfor %}],
             datasets: [{
-                label: 'Баллы',
+                label: 'Средний балл',
                 data: [{% for item in stats_by_intern %}{{ item.score }},{% endfor %}],
                 backgroundColor: '#36b9cc'
             }]

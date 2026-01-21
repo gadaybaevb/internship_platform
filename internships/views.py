@@ -22,7 +22,7 @@ from django.utils import timezone
 from notifications.models import Notification
 from tests.models import Test, TestResult
 from django.utils.dateparse import parse_date
-from django.db.models import Avg, F, ExpressionWrapper, fields
+from django.db.models import Avg, F, ExpressionWrapper, fields, Count
 from django.contrib.messages import get_messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
@@ -836,11 +836,27 @@ def mentor_charts(request, mentor_id):
         ))
     ).order_by('month')
 
-    # Преобразуем длительность в часы для JS
     conf_labels = [d['month'].strftime('%b %Y') for d in conf_time_data]
     conf_values = [round(d['avg_hours'].total_seconds() / 3600, 1) if d['avg_hours'] else 0 for d in conf_time_data]
 
-    # 2. Данные для графика: Количество завершенных стажировок по месяцам
+    # 2. НОВОЕ: Среднее время прохождения стажировки по месяцам (в днях)
+    # Считаем разницу между датой начала и датой финиша
+    duration_trend_data = internships.filter(
+        is_finished=True,
+        date_finished__isnull=False
+    ).annotate(
+        month=TruncMonth('date_finished')
+    ).values('month').annotate(
+        avg_days=Avg(ExpressionWrapper(
+            F('date_finished') - F('start_date'),
+            output_field=fields.DurationField()
+        ))
+    ).order_by('month')
+
+    dur_labels = [d['month'].strftime('%b %Y') for d in duration_trend_data]
+    dur_values = [int(d['avg_days'].days) if d['avg_days'] else 0 for d in duration_trend_data]
+
+    # 3. Данные для графика: Количество завершенных стажировок по месяцам
     finished_data = internships.filter(
         is_finished=True,
         date_finished__isnull=False
@@ -853,7 +869,7 @@ def mentor_charts(request, mentor_id):
     fin_labels = [d['month'].strftime('%b %Y') for d in finished_data]
     fin_values = [d['count'] for d in finished_data]
 
-    # 3. Средние баллы по стажерам (как в прошлом ответе)
+    # 4. Средние баллы по стажерам
     stats_by_intern = []
     for intern_item in internships.select_related('intern'):
         score = TestResult.objects.filter(user=intern_item.intern).aggregate(Avg('score'))['score__avg'] or 0
@@ -863,6 +879,8 @@ def mentor_charts(request, mentor_id):
         'mentor': mentor,
         'conf_labels': conf_labels,
         'conf_values': conf_values,
+        'dur_labels': dur_labels,  # Передаем дни
+        'dur_values': dur_values,  # Передаем значения дней
         'fin_labels': fin_labels,
         'fin_values': fin_values,
         'stats_by_intern': stats_by_intern,

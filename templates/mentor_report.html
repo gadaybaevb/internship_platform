@@ -4,16 +4,15 @@
 <div class="container mt-4">
     <h2>Отчет по менторам</h2>
 
-    <!-- Форма для фильтрации -->
     <form method="get" class="mb-4">
         <div class="row">
             <div class="col-md-3">
                 <input type="text" name="department" class="form-control" placeholder="Департамент" value="{{ department_query }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
             </div>
             <div class="col-md-3">
@@ -22,77 +21,56 @@
         </div>
     </form>
 
-    <!-- Таблица с отчетом по менторам -->
     <div class="table-responsive">
-        <table class="table table-bordered">
-            <thead>
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
                 <tr>
                     <th>#</th>
                     <th>ФИО ментора</th>
-                    <th>Количество стажеров</th>
-                    <th>Завершенные стажировки</th>
-                    <th>Стажировки в процессе</th>
-                    <th>Процент успешности тестов</th>
-                    <th>Среднее время подтверждения материалов</th>
+                    <th>Всего стажеров</th>
+                    <th>Завершено</th>
+                    <th>В процессе</th>
+                    <th>Средний балл тестов</th> <th>Среднее время стажировки</th> <th>Ср. время проверки материалов</th>
                 </tr>
             </thead>
             <tbody>
                 {% for mentor_stat in mentor_stats %}
-<tr>
-    <td>{{ forloop.counter }}</td>
-    <td>
-        <a href="{% url 'mentor_charts' mentor_stat.mentor.id %}">
-            {{ mentor_stat.mentor.full_name }}
-        </a>
-    </td>
-    <td>{{ mentor_stat.total_interns }}</td>
-    <td>{{ mentor_stat.completed_internships }}</td>
-    <td>{{ mentor_stat.in_progress_internships }}</td>
-    <td><strong>{{ mentor_stat.avg_test_score }}</strong></td>
-    <td>
-        {{ mentor_stat.avg_internship_duration.days }} дн.
-    </td>
-    <td>
-        {% if mentor_stat.avg_confirmation_time.total_seconds %}
-            {{ mentor_stat.avg_confirmation_time.days }}д {{ mentor_stat.avg_confirmation_time.seconds|divisibleby:3600 }}ч
-        {% else %}0{% endif %}
-    </td>
-</tr>
-{% endfor %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <a href="{% url 'mentor_charts' mentor_stat.mentor.id %}" class="text-decoration-none fw-bold">
+                            {{ mentor_stat.mentor.full_name }}
+                        </a>
+                    </td>
+                    <td class="text-center">{{ mentor_stat.total_interns }}</td>
+                    <td class="text-center text-success">{{ mentor_stat.completed_internships }}</td>
+                    <td class="text-center text-warning">{{ mentor_stat.in_progress_internships }}</td>
+                    <td class="text-center"><strong>{{ mentor_stat.avg_test_score }}</strong></td>
+                    <td class="text-center">
+                        {% if mentor_stat.avg_internship_duration.days > 0 %}
+                            {{ mentor_stat.avg_internship_duration.days }} дн.
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if mentor_stat.avg_confirmation_time.total_seconds %}
+                            {{ mentor_stat.avg_confirmation_time.days }}д
+                            {{ mentor_stat.avg_confirmation_time.seconds|divisibleby:3600 }}ч
+                        {% else %}
+                            0ч
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <!-- Пагинация (если есть) -->
-    <nav aria-label="Page navigation">
-        <ul class="pagination">
-            {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page=1">Первая</a>
-            </li>
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
-            </li>
-            {% endif %}
-
-            <li class="page-item active">
-                <a class="page-link" href="#">{{ page_obj.number }}</a>
-            </li>
-
-            {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a>
-            </li>
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Последняя</a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-
-    <!-- Кнопка для печати -->
-    <div class="mt-4">
-        <button onclick="window.print()" class="btn btn-primary">Печать отчета</button>
+    <div class="mt-4 d-flex justify-content-end">
+        <button onclick="window.print()" class="btn btn-success">
+            <i class="bi bi-printer"></i> Печать отчета
+        </button>
     </div>
 </div>
 {% endblock %}
