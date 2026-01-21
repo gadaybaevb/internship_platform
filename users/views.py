@@ -67,7 +67,7 @@ def home(request):
 
     # ===================== ADMIN =====================
     if user.role == 'admin':
-        # 1. Сначала фильтруем стажировки, которые теоретически могли существовать в этом месяце
+        # 1. Берем все стажировки, которые начались до конца выбранного месяца
         all_internships = Internship.objects.select_related(
             'intern', 'mentor', 'position'
         ).filter(start_date__lte=month_end)
@@ -75,14 +75,15 @@ def home(request):
         admin_intern_stats = []
 
         for internship in all_internships:
-            # Рассчитываем дату окончания стажировки
+            # Рассчитываем дату окончания стажировки по плану
             end_date = internship.start_date + timedelta(
                 days=internship.position.duration_days
             )
 
-            # Проверяем: стажировка должна закончиться НЕ раньше начала месяца
-            # и начаться НЕ позже конца месяца
-            if internship.start_date <= month_end and end_date >= month_start:
+            # ЧТОБЫ ШОИРА НЕ ПРОПАДАЛА В ЯНВАРЕ:
+            # Убираем жесткое условие "end_date >= month_start", если хотим видеть её всегда.
+            # Оставляем только проверку на начало.
+            if internship.start_date <= month_end:
 
                 # --- ЛОГИКА ПОДСЧЕТА МАТЕРИАЛОВ С ФИЛЬТРОМ ПО ДАТЕ ---
                 total_m = Material.objects.filter(
@@ -94,28 +95,35 @@ def home(request):
                     intern=internship.intern,
                     material__position=internship.position,
                     status='completed',
-                    confirmation_date__date__lte=month_end  # <--- Критически важный фильтр
+                    confirmation_date__date__lte=month_end
                 )
                 completed_m = completed_m_query.count()
 
                 # --- БЛОК ДИАГНОСТИКИ (ПРИНТЫ) ---
                 if "Шоира" in internship.intern.full_name:
                     print(f"\n--- ОТЧЕТ ДЛЯ {internship.intern.full_name} ---")
-                    print(f"Период фильтра: {month_start} - {month_end}")
-                    print(f"Стажировка: с {internship.start_date} по {end_date}")
-                    print(
-                        f"Найдено материалов в БД всего для неё: {MaterialProgress.objects.filter(intern=internship.intern).count()}")
-                    print(f"Из них подтверждено до {month_end}: {completed_m}")
-                    # Выведем даты подтверждения, чтобы увидеть "январские" в декабре
-                    for mp in completed_m_query:
-                        print(f"  > Мат: {mp.material.id} | Подтвержден: {mp.confirmation_date}")
+                    print(f"Период фильтра (месяц): {month_start} - {month_end}")
+                    print(f"Срок стажировки по плану: {internship.start_date} - {end_date}")
+                    print(f"Подтверждено материалов до {month_end}: {completed_m}")
                 # --- КОНЕЦ ПРИНТОВ ---
 
                 percent = round((completed_m / total_m) * 100, 2) if total_m else 0
 
-                # Статус на момент выбранного периода
-                if internship.is_completed() and (
-                        internship.completion_date and internship.completion_date.date() <= month_end):
+                # --- ИСПРАВЛЕННЫЙ СТАТУС (БЕЗ ОШИБКИ completion_date) ---
+                # Проверяем, завершены ли ВСЕ материалы на текущий момент
+                is_full_done = internship.is_completed()
+
+                # Ищем дату последнего подтвержденного материала
+                last_progress = MaterialProgress.objects.filter(
+                    intern=internship.intern,
+                    material__position=internship.position,
+                    status='completed'
+                ).order_by('-confirmation_date').first()
+
+                last_conf_date = last_progress.confirmation_date.date() if last_progress and last_progress.confirmation_date else None
+
+                # Логика определения статуса
+                if is_full_done and last_conf_date and last_conf_date <= month_end:
                     status = 'Завершена'
                 elif today > end_date:
                     status = 'Срок истёк'
