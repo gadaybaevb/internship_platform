@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Аналитика ментора: {{ mentor.full_name }}</h2>
+        <a href="{% url 'mentor_report' %}" class="btn btn-outline-primary">← К списку менторов</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm p-3">
+                <h5 class="card-title text-muted">Среднее время утверждения материалов (в часах)</h5>
+                <canvas id="timeLineChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3">
+                <h5 class="card-title text-muted">Количество выпускников по месяцам</h5>
+                <canvas id="graduatesChart"></canvas>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3">
+                <h5 class="card-title text-muted">Средний балл текущих и прошлых стажеров</h5>
+                <canvas id="scoresBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const commonOptions = {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true } }
+    };
+
+    // 1. График времени подтверждения (Line Chart)
+    new Chart(document.getElementById('timeLineChart'), {
+        type: 'line',
+        data: {
+            labels: {{ conf_labels|safe }},
+            datasets: [{
+                label: 'Часы',
+                data: {{ conf_values|safe }},
+                borderColor: '#4e73df',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: commonOptions
+    });
+
+    // 2. График выпускников (Bar Chart)
+    new Chart(document.getElementById('graduatesChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ fin_labels|safe }},
+            datasets: [{
+                label: 'Человек',
+                data: {{ fin_values|safe }},
+                backgroundColor: '#1cc88a'
+            }]
+        },
+        options: commonOptions
+    });
+
+    // 3. График баллов (Horizontal Bar)
+    new Chart(document.getElementById('scoresBarChart'), {
+        type: 'bar',
+        data: {
+            labels: [{% for item in stats_by_intern %}"{{ item.name }}",{% endfor %}],
+            datasets: [{
+                label: 'Баллы',
+                data: [{% for item in stats_by_intern %}{{ item.score }},{% endfor %}],
+                backgroundColor: '#36b9cc'
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            scales: { x: { beginAtZero: true, max: 100 } }
+        }
+    });
+</script>
+{% endblock %}

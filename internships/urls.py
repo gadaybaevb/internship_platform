@@ -24,6 +24,7 @@ from .views import (
     intern_report_export,
     active_interns_list,
     generate_pdf,
+    mentor_charts,
 )
 
 urlpatterns = [
@@ -56,4 +57,5 @@ urlpatterns = [
     path('intern_report_export/<int:intern_id>/', intern_report_export, name='intern_report_export'),
     path('reports/active_interns/', active_interns_list, name='active_interns_list'),
     path('pdf/<int:intern_id>/', generate_pdf, name='generate_pdf'),
+    path('mentor-report/charts/<int:mentor_id>/', mentor_charts, name='mentor_charts'),
 ]

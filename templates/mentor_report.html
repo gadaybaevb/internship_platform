@@ -38,22 +38,27 @@
             </thead>
             <tbody>
                 {% for mentor_stat in mentor_stats %}
-                <tr>
-                    <td>{{ forloop.counter }}</td>
-                    <td>{{ mentor_stat.mentor.full_name }}</td>
-                    <td>{{ mentor_stat.total_interns }}</td>
-                    <td>{{ mentor_stat.completed_internships }}</td>
-                    <td>{{ mentor_stat.in_progress_internships }}</td>
-                    <td>{{ mentor_stat.test_success_rate }}%</td>
-                    <td>
-                        {% if mentor_stat.avg_confirmation_time.total_seconds %}
-                            {{ mentor_stat.avg_confirmation_time.days }} дн {{ mentor_stat.avg_confirmation_time.seconds|divisibleby:3600 }} ч
-                        {% else %}
-                            Не доступно
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
+<tr>
+    <td>{{ forloop.counter }}</td>
+    <td>
+        <a href="{% url 'mentor_charts' mentor_stat.mentor.id %}">
+            {{ mentor_stat.mentor.full_name }}
+        </a>
+    </td>
+    <td>{{ mentor_stat.total_interns }}</td>
+    <td>{{ mentor_stat.completed_internships }}</td>
+    <td>{{ mentor_stat.in_progress_internships }}</td>
+    <td><strong>{{ mentor_stat.avg_test_score }}</strong></td>
+    <td>
+        {{ mentor_stat.avg_internship_duration.days }} дн.
+    </td>
+    <td>
+        {% if mentor_stat.avg_confirmation_time.total_seconds %}
+            {{ mentor_stat.avg_confirmation_time.days }}д {{ mentor_stat.avg_confirmation_time.seconds|divisibleby:3600 }}ч
+        {% else %}0{% endif %}
+    </td>
+</tr>
+{% endfor %}
             </tbody>
         </table>
     </div>

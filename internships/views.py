@@ -11,6 +11,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.contrib import messages
 #from weasyprint import HTML
+from django.db.models.functions import TruncMonth
 from django.template.loader import render_to_string
 from users.models import CustomUser
 from django.core.files.storage import default_storage
@@ -21,7 +22,7 @@ from django.utils import timezone
 from notifications.models import Notification
 from tests.models import Test, TestResult
 from django.utils.dateparse import parse_date
-from django.db.models import Avg, F
+from django.db.models import Avg, F, ExpressionWrapper, fields
 from django.contrib.messages import get_messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
@@ -761,44 +762,50 @@ def mentor_report(request):
     if department_query:
         mentors = mentors.filter(department__name__icontains=department_query)
 
+    # Фильтруем менторов, у которых были стажировки в этот период
     if start_date and end_date:
-        mentors = mentors.filter(intern_internships__start_date__range=[start_date, end_date])
+        mentors = mentors.filter(mentor_internships__start_date__range=[start_date, end_date]).distinct()
 
     mentor_stats = []
 
     for mentor in mentors:
-        # Количество стажеров под руководством ментора
         internships = Internship.objects.filter(mentor=mentor)
         total_interns = internships.count()
 
-        # Количество завершенных стажировок
-        completed_internships = internships.filter(intern__stage_progresses__completed=True).distinct().count()
+        # Используем ваше новое поле is_finished
+        completed_internships_qs = internships.filter(is_finished=True)
+        completed_count = completed_internships_qs.count()
+        in_progress_count = total_interns - completed_count
 
-        # Количество стажировок в процессе
-        in_progress_internships = total_interns - completed_internships
+        # 1. Средний балл по тестам (2 знака после запятой)
+        intern_ids = internships.values_list('intern_id', flat=True)
+        avg_test_score = TestResult.objects.filter(user_id__in=intern_ids).aggregate(Avg('score'))['score__avg'] or 0
+        avg_test_score = round(avg_test_score, 2)
 
-        # Среднее время подтверждения материалов
-        avg_confirmation_time = MaterialProgress.objects.filter(
-            intern__in=internships.values_list('intern', flat=True),
-            status='completed'
-        ).aggregate(avg_time=Avg(F('confirmation_date') - F('completion_date')))
+        # 2. Среднее время подтверждения материалов (Mentor Response Time)
+        avg_conf_time = MaterialProgress.objects.filter(
+            intern_id__in=intern_ids,
+            status='completed',
+            confirmation_date__isnull=False,
+            completion_date__isnull=False
+        ).aggregate(avg_time=Avg(F('confirmation_date') - F('completion_date')))['avg_time']
 
-        # Процент успешности по тестам (используем related_name 'test_results' в модели TestResult)
-        total_tests = TestResult.objects.filter(user__in=internships.values_list('intern', flat=True)).count()
-        successful_tests = TestResult.objects.filter(user__in=internships.values_list('intern', flat=True), score__gte=60).count()  # Считаем сданные тесты
-
-        if total_tests > 0:
-            test_success_rate = (successful_tests / total_tests) * 100
-        else:
-            test_success_rate = 0
+        # 3. Среднее время прохождения всей стажировки (только для завершенных)
+        # Разница между date_finished и start_date
+        avg_internship_duration = completed_internships_qs.filter(
+            date_finished__isnull=False
+        ).annotate(
+            duration=ExpressionWrapper(F('date_finished') - F('start_date'), output_field=fields.DurationField())
+        ).aggregate(Avg('duration'))['duration__avg']
 
         mentor_stats.append({
             'mentor': mentor,
             'total_interns': total_interns,
-            'completed_internships': completed_internships,
-            'in_progress_internships': in_progress_internships,
-            'test_success_rate': test_success_rate,
-            'avg_confirmation_time': avg_confirmation_time['avg_time'] or timedelta(0),
+            'completed_internships': completed_count,
+            'in_progress_internships': in_progress_count,
+            'avg_test_score': avg_test_score,
+            'avg_confirmation_time': avg_conf_time or timedelta(0),
+            'avg_internship_duration': avg_internship_duration or timedelta(0),
         })
 
     return render(request, 'mentor_report.html', {
@@ -806,6 +813,61 @@ def mentor_report(request):
         'department_query': department_query,
         'start_date': start_date,
         'end_date': end_date,
+    })
+
+
+@staff_member_required
+def mentor_charts(request, mentor_id):
+    mentor = get_object_or_404(CustomUser, id=mentor_id, role='mentor')
+    internships = Internship.objects.filter(mentor=mentor)
+
+    # 1. Данные для графика: Время подтверждения материалов по месяцам (в часах)
+    conf_time_data = MaterialProgress.objects.filter(
+        intern__intern_internships__mentor=mentor,
+        status='completed',
+        confirmation_date__isnull=False,
+        completion_date__isnull=False
+    ).annotate(
+        month=TruncMonth('confirmation_date')
+    ).values('month').annotate(
+        avg_hours=Avg(ExpressionWrapper(
+            F('confirmation_date') - F('completion_date'),
+            output_field=fields.DurationField()
+        ))
+    ).order_by('month')
+
+    # Преобразуем длительность в часы для JS
+    conf_labels = [d['month'].strftime('%b %Y') for d in conf_time_data]
+    conf_values = [round(d['avg_hours'].total_seconds() / 3600, 1) if d['avg_hours'] else 0 for d in conf_time_data]
+
+    # 2. Данные для графика: Количество завершенных стажировок по месяцам
+    finished_data = internships.filter(
+        is_finished=True,
+        date_finished__isnull=False
+    ).annotate(
+        month=TruncMonth('date_finished')
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month')
+
+    fin_labels = [d['month'].strftime('%b %Y') for d in finished_data]
+    fin_values = [d['count'] for d in finished_data]
+
+    # 3. Средние баллы по стажерам (как в прошлом ответе)
+    stats_by_intern = []
+    for intern_item in internships.select_related('intern'):
+        score = TestResult.objects.filter(user=intern_item.intern).aggregate(Avg('score'))['score__avg'] or 0
+        stats_by_intern.append({'name': intern_item.intern.full_name, 'score': round(score, 2)})
+
+    return render(request, 'mentor_charts.html', {
+        'mentor': mentor,
+        'conf_labels': conf_labels,
+        'conf_values': conf_values,
+        'fin_labels': fin_labels,
+        'fin_values': fin_values,
+        'stats_by_intern': stats_by_intern,
+        'completed': internships.filter(is_finished=True).count(),
+        'active': internships.filter(is_finished=False).count(),
     })
 
 
