@@ -67,7 +67,7 @@ def home(request):
 
     # ===================== ADMIN =====================
     if user.role == 'admin':
-        # 1. Получаем стажировки, которые начались до конца выбранного месяца
+        # 1. Получаем стажировки, начавшиеся до конца выбранного месяца
         all_internships = Internship.objects.select_related(
             'intern', 'mentor', 'position'
         ).filter(start_date__lte=month_end)
@@ -77,32 +77,43 @@ def home(request):
         completed_materials_all = 0
 
         for internship in all_internships:
-            # --- ЛОГИКА СКРЫТИЯ ЗАВЕРШЕННЫХ СТАЖИРОВОК ---
-            # Вычисляем дату, когда стажировка была фактически завершена.
-            # Так как в модели Internship нет поля даты завершения,
-            # берем дату последнего подтвержденного материала как точку отсчета.
-            last_m = MaterialProgress.objects.filter(
-                intern=internship.intern,
-                material__position=internship.position,
-                status='completed'
-            ).order_by('-confirmation_date').first()
 
-            actual_finish_date = last_m.confirmation_date.date() if last_m and last_m.confirmation_date else None
+            # --- ЛОГИКА СКРЫТИЯ (Только тесты и этапы) ---
+            # Проверяем: если ВСЕ тесты и ВСЕ этапы были завершены ДО начала этого месяца,
+            # то стажер уже не считается активным в этом периоде.
 
-            # УСЛОВИЕ: Если метод модели говорит, что стажировка ЗАВЕРШЕНА (этапы+тесты+материалы),
-            # и это случилось ДО начала выбранного месяца — скрываем из таблицы.
-            if internship.is_completed() and actual_finish_date and actual_finish_date < month_start:
-                continue
+            # ВАЖНО: так как тесты и этапы обычно не имеют даты подтверждения в MaterialProgress,
+            # мы проверяем их текущий статус через методы модели.
+            # Если вы хотите строгую историчность, то стажер скроется сразу, как только закроет тесты/этапы.
 
-            # --- РАСЧЕТ ДАННЫХ ДЛЯ ТЕХ, КТО ОСТАЛСЯ В СПИСКЕ ---
+            already_finished_tests = internship.all_tests_completed()
+            already_finished_stages = internship.all_stages_completed()
+
+            # Если стажер УЖЕ всё сдал (тесты и этапы) и мы находимся в месяце ПОСЛЕ его планового окончания,
+            # либо если он закончил их раньше — скрываем.
+            # (Здесь мы полагаемся на логику: если всё сдано, в текущем месяце ему делать нечего)
+            if already_finished_tests and already_finished_stages:
+                # Находим дату последнего действия (материала), чтобы понять, когда он закончил
+                last_m = MaterialProgress.objects.filter(
+                    intern=internship.intern,
+                    material__position=internship.position,
+                    status='completed'
+                ).order_by('-confirmation_date').first()
+
+                actual_finish_date = last_m.confirmation_date.date() if last_m and last_m.confirmation_date else None
+
+                # Если финал был в прошлом месяце — скрываем
+                if actual_finish_date and actual_finish_date < month_start:
+                    continue
+
+            # --- РАСЧЕТ ДАННЫХ ДЛЯ ТАБЛИЦЫ ---
             end_date_plan = internship.start_date + timedelta(
                 days=internship.position.duration_days
             )
 
-            # Общее кол-во материалов позиции
             total_m = Material.objects.filter(position=internship.position).count()
 
-            # Прогресс материалов строго на выбранный период
+            # Прогресс материалов именно за выбранный период
             completed_m_qs = MaterialProgress.objects.filter(
                 intern=internship.intern,
                 material__position=internship.position,
@@ -111,16 +122,18 @@ def home(request):
             )
             completed_m = completed_m_qs.count()
 
-            # Для общей статистики в карточках
             total_materials_all += total_m
             completed_materials_all += completed_m
 
             percent = round((completed_m / total_m) * 100, 2) if total_m else 0
 
-            # --- ОПРЕДЕЛЕНИЕ СТАТУСА ДЛЯ ТАБЛИЦЫ ---
-            # Статус "Завершена" ставим только если ВСЕ условия модели выполнены
-            # и дата финала попадает в текущий месяц (или раньше)
-            if internship.is_completed() and actual_finish_date and actual_finish_date <= month_end:
+            # --- СТАТУС ---
+            # Используем ваши методы из модели для определения статуса
+            tests_done = internship.all_tests_completed()
+            stages_done = internship.all_stages_completed()
+            materials_done = internship.all_materials_completed()
+
+            if tests_done and stages_done and materials_done:
                 status = 'Завершена'
             elif month_end > end_date_plan:
                 status = 'Срок истёк'
@@ -138,12 +151,7 @@ def home(request):
             })
 
         # --- ОБЩАЯ СТАТИСТИКА (Карточки) ---
-        interns_this_month = Internship.objects.filter(
-            start_date__month=selected_month,
-            start_date__year=selected_year
-        ).count()
-
-        total_interns = Internship.objects.count()
+        total_interns = len(admin_intern_stats)  # Считаем только тех, кто в таблице
         total_mentors = Internship.objects.exclude(mentor=None).values('mentor').distinct().count()
 
         total_completion_percent = round(
@@ -151,7 +159,6 @@ def home(request):
         ) if total_materials_all else 0
 
         context.update({
-            'interns_this_month': interns_this_month,
             'total_interns': total_interns,
             'total_mentors': total_mentors,
             'total_completion_percent': total_completion_percent,
