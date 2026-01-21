@@ -45,7 +45,11 @@ class Internship(models.Model):
     def all_materials_completed(self):
         """Проверка, завершены ли все материалы."""
         # Проверяем, завершены ли все материалы для позиции стажера
-        return MaterialProgress.objects.filter(intern=self.intern, completed=False).count() == 0
+        return MaterialProgress.objects.filter(
+            intern=self.intern,
+            material__position=self.position,
+            completed=False
+        ).count() == 0
 
 
 
