@@ -67,57 +67,70 @@ def home(request):
 
     # ===================== ADMIN =====================
     if user.role == 'admin':
-        # 1. Фильтруем стажировки, которые пересекаются с выбранным месяцем
-        # Стажировка активна, если она началась до конца месяца И (не имеет даты окончания или закончилась после начала месяца)
-        internships_queryset = Internship.objects.filter(
-            start_date__lte=month_end
-        ).select_related('intern', 'mentor', 'position')
-
-        # 2. Используем annotate для подсчета материалов прямо в БД
-        # Это заменит цикл и десятки запросов на 1 эффективный запрос
-        admin_intern_stats_query = internships_queryset.annotate(
-            completed_count=Count(
-                'intern__materialprogress',
-                filter=Q(
-                    'intern__materialprogress__material__position' == F('position'),  # материалы именно этой позиции
-                    intern__materialprogress__status='completed',
-                    intern__materialprogress__confirmation_date__date__lte=month_end
-                )
-            ),
-            total_count=Count(
-                'position__material'  # Общее кол-во материалов для этой позиции
-            )
-        )
+        # 1. Сначала фильтруем стажировки, которые теоретически могли существовать в этом месяце
+        all_internships = Internship.objects.select_related(
+            'intern', 'mentor', 'position'
+        ).filter(start_date__lte=month_end)
 
         admin_intern_stats = []
 
-        for item in admin_intern_stats_query:
-            # Рассчитываем окончание стажировки
-            end_date_calc = item.start_date + timedelta(days=item.position.duration_days)
+        for internship in all_internships:
+            # Рассчитываем дату окончания стажировки
+            end_date = internship.start_date + timedelta(
+                days=internship.position.duration_days
+            )
 
-            # Пропускаем те, что закончились до начала выбранного месяца
-            if end_date_calc < month_start:
-                continue
+            # Проверяем: стажировка должна закончиться НЕ раньше начала месяца
+            # и начаться НЕ позже конца месяца
+            if internship.start_date <= month_end and end_date >= month_start:
 
-            percent = round((item.completed_count / item.total_count) * 100, 2) if item.total_count else 0
+                # --- ЛОГИКА ПОДСЧЕТА МАТЕРИАЛОВ С ФИЛЬТРОМ ПО ДАТЕ ---
+                total_m = Material.objects.filter(
+                    position=internship.position
+                ).count()
 
-            # Определяем статус
-            if item.is_completed() and item.confirmation_date and item.confirmation_date.date() <= month_end:
-                status = 'Завершена'
-            elif month_end > end_date_calc:
-                status = 'Срок истёк'
-            else:
-                status = 'Активна'
+                # Считаем только то, что было подтверждено до КОНЦА выбранного месяца
+                completed_m_query = MaterialProgress.objects.filter(
+                    intern=internship.intern,
+                    material__position=internship.position,
+                    status='completed',
+                    confirmation_date__date__lte=month_end  # <--- Критически важный фильтр
+                )
+                completed_m = completed_m_query.count()
 
-            admin_intern_stats.append({
-                'intern': item.intern,
-                'mentor': item.mentor,
-                'position': item.position,
-                'completed': item.completed_count,
-                'total': item.total_count,
-                'percent': percent,
-                'status': status,
-            })
+                # --- БЛОК ДИАГНОСТИКИ (ПРИНТЫ) ---
+                if "Шоира" in internship.intern.full_name:
+                    print(f"\n--- ОТЧЕТ ДЛЯ {internship.intern.full_name} ---")
+                    print(f"Период фильтра: {month_start} - {month_end}")
+                    print(f"Стажировка: с {internship.start_date} по {end_date}")
+                    print(
+                        f"Найдено материалов в БД всего для неё: {MaterialProgress.objects.filter(intern=internship.intern).count()}")
+                    print(f"Из них подтверждено до {month_end}: {completed_m}")
+                    # Выведем даты подтверждения, чтобы увидеть "январские" в декабре
+                    for mp in completed_m_query:
+                        print(f"  > Мат: {mp.material.id} | Подтвержден: {mp.confirmation_date}")
+                # --- КОНЕЦ ПРИНТОВ ---
+
+                percent = round((completed_m / total_m) * 100, 2) if total_m else 0
+
+                # Статус на момент выбранного периода
+                if internship.is_completed() and (
+                        internship.completion_date and internship.completion_date.date() <= month_end):
+                    status = 'Завершена'
+                elif today > end_date:
+                    status = 'Срок истёк'
+                else:
+                    status = 'Активна'
+
+                admin_intern_stats.append({
+                    'intern': internship.intern,
+                    'mentor': internship.mentor,
+                    'position': internship.position,
+                    'completed': completed_m,
+                    'total': total_m,
+                    'percent': percent,
+                    'status': status,
+                })
 
 
     # ===================== MENTOR =====================
