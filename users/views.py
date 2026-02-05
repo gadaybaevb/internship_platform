@@ -216,29 +216,54 @@ def home(request):
 
     # ===================== INTERN =====================
     elif user.role == 'intern':
-        internship = Internship.objects.filter(intern=user).select_related('position').first()
+        internship = (
+            Internship.objects
+            .filter(intern=user)
+            .select_related('position')
+            .first()
+        )
 
-        if internship:
-            materials = MaterialProgress.objects.filter(
-                intern=user,
-                material__position=internship.position
-            )
-
-            completed = materials.filter(status='completed').count()
-            total = materials.count()
-
-            end_date = internship.start_date + timedelta(
-                days=internship.position.duration_days
-            )
-
-            days_left = (end_date - today).days
-
+        # ❗ Если стажировки НЕТ
+        if not internship:
             context.update({
-                'completed_materials': completed,
-                'total_materials': total,
-                'days_left': days_left,
-                'internship': internship,
+                'internship_error': 'Вам ещё не назначена стажировка. Обратитесь к администратору.'
             })
+            return render(request, 'home.html', context)
+
+        # ❗ Если у стажировки НЕТ позиции
+        if not internship.position:
+            context.update({
+                'internship_error': 'Стажировка создана, но позиция не назначена. Обратитесь к администратору.'
+            })
+            return render(request, 'home.html', context)
+
+        # ❗ Если у позиции НЕТ срока
+        if not internship.position.duration_days:
+            context.update({
+                'internship_error': 'У позиции не указан срок стажировки. Обратитесь к администратору.'
+            })
+            return render(request, 'home.html', context)
+
+        materials = MaterialProgress.objects.filter(
+            intern=user,
+            material__position=internship.position
+        )
+
+        completed = materials.filter(status='completed').count()
+        total = materials.count()
+
+        end_date = internship.start_date + timedelta(
+            days=internship.position.duration_days
+        )
+
+        days_left = (end_date - today).days
+
+        context.update({
+            'completed_materials': completed,
+            'total_materials': total,
+            'days_left': days_left,
+            'internship': internship,
+        })
 
     return render(request, 'home.html', context)
 
