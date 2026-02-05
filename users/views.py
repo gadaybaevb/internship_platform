@@ -70,7 +70,12 @@ def home(request):
         # 1. Сначала фильтруем стажировки, которые начались до конца выбранного месяца
         all_internships = Internship.objects.select_related(
             'intern', 'mentor', 'position'
-        ).filter(start_date__lte=month_end)
+        ).filter(
+            start_date__lte=month_end
+        ).exclude(
+            is_finished=True,
+            date_finished__lt=month_start
+        )
 
         admin_intern_stats = []
         total_materials_all = 0
@@ -96,16 +101,26 @@ def home(request):
             )
 
             # --- ПОДСЧЕТ МАТЕРИАЛОВ С ФИЛЬТРОМ ПО ВРЕМЕНИ ---
-            total_m = Material.objects.filter(position=internship.position).count()
+            if internship.is_finished:
+                # ❗ Завершён — больше НЕ трогаем материалы
+                total_m = MaterialProgress.objects.filter(
+                    intern=internship.intern,
+                    material__position=internship.position,
+                    status='completed'
+                ).count()
+                completed_m = total_m
+            else:
+                # ❗ Активный — считаем нормально
+                total_m = Material.objects.filter(
+                    position=internship.position
+                ).count()
 
-            # Считаем прогресс материалов ТОЛЬКО до конца выбранного месяца
-            completed_m_qs = MaterialProgress.objects.filter(
-                intern=internship.intern,
-                material__position=internship.position,
-                status='completed',
-                confirmation_date__date__lte=month_end
-            )
-            completed_m = completed_m_qs.count()
+                completed_m = MaterialProgress.objects.filter(
+                    intern=internship.intern,
+                    material__position=internship.position,
+                    status='completed',
+                    confirmation_date__date__lte=month_end
+                ).count()
 
             # Накапливаем данные для общих карточек вверху
             total_materials_all += total_m

@@ -13,6 +13,7 @@ class Material(models.Model):
     file = models.FileField(upload_to='materials/', null=True, blank=True, verbose_name='Файл')  # Файл (PDF, видео и т.д.)
     position = models.ForeignKey(Position, on_delete=models.CASCADE, verbose_name='Позиция')  # Связь с позицией
     stage = models.IntegerField(verbose_name='Этап')  # Номер этапа
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f'{self.title} (Этап {self.stage} для {self.position.name})'
@@ -53,11 +54,15 @@ class Internship(models.Model):
         return StageProgress.objects.filter(intern=self.intern, completed=False).count() == 0
 
     def all_materials_completed(self):
-        """Проверка, завершены ли все материалы."""
-        # Проверяем, завершены ли все материалы для позиции стажера
+        materials = Material.objects.filter(position=self.position)
+
+        # 🔒 если стажировка завершена — фиксируем срез
+        if self.is_finished and self.date_finished:
+            materials = materials.filter(created_at__lte=self.date_finished)
+
         return MaterialProgress.objects.filter(
             intern=self.intern,
-            material__position=self.position,
+            material__in=materials,
             completed=False
         ).count() == 0
 
