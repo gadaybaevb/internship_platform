@@ -77,10 +77,17 @@ def home(request):
         completed_materials_all = 0
 
         for internship in all_internships:
-            # --- ЛОГИКА ФИЛЬТРАЦИИ ПО ГАЛОЧКЕ ЗАВЕРШЕНИЯ ---
-            # Если стажировка помечена как завершенная И дата завершения РАНЬШЕ начала выбранного месяца,
-            # мы её полностью пропускаем (она осталась в прошлом).
-            if internship.is_finished and internship.date_finished and internship.date_finished < month_start:
+
+            if not internship.position:
+                admin_intern_stats.append({
+                    'intern': internship.intern,
+                    'mentor': internship.mentor,
+                    'position': None,
+                    'completed': 0,
+                    'total': 0,
+                    'percent': 0,
+                    'status': 'Ошибка данных',
+                })
                 continue
 
             # Рассчитываем плановую дату окончания для статуса "Срок истёк"
